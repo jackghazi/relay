@@ -4,3 +4,4 @@
 FAIL=0
 for t in test*.js; do node "$t" || FAIL=1; done
 [ $FAIL -eq 0 ] && echo "ALL SUITES GREEN" || echo "FAILURES — see above"
+exit $FAIL
