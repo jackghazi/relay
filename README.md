@@ -34,7 +34,7 @@ attacked with hostile input, and re-tested from a fresh clone:
   duplicates and never overwrites a different chat's history.
 - **Your data survives you** — saves are timestamped, storage failures warn
   loudly instead of failing silently, and the 💾 data file writes through to
-  a real file on disk. 158 automated tests in /tests — run them yourself.
+  a real file on disk. 173 automated tests in /tests — run them yourself.
 
 ## Get started
 

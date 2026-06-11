@@ -538,6 +538,43 @@
   </div>
 </div>
 
+<!-- ===== Handoff minter (Start next chat) ===== -->
+<div class="overlay" id="overlay4" style="z-index:115">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head"><h2>Start next chat</h2><button class="btn ghost sm" onclick="closeHandoff()">✕</button></div>
+    <div class="modal-body">
+      <p class="hint" id="ho_from" style="font-size:13.5px;margin:0 0 12px"></p>
+      <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:9px">Where does the next session live?</label>
+      <div class="flavor-grid">
+        <div class="flavor" data-flavor="code" style="--fc:#3b6ef5;--fc-soft:#eaf0ff" onclick="handoffMint('code')">
+          <span class="ic"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m5 8 4 4-4 4'/><path d='M12 18h7'/><rect x='2' y='3' width='20' height='18' rx='2'/></svg></span><div class="fl">Claude Code</div><div class="fd">Hand the build to Code</div></div>
+        <div class="flavor" data-flavor="ai" style="--fc:#8b5cf6;--fc-soft:#f1ebfe" onclick="handoffMint('ai')">
+          <span class="ic"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 8V4H8'/><rect x='4' y='8' width='16' height='12' rx='2'/><path d='M2 14h2'/><path d='M20 14h2'/><path d='M15 13v2'/><path d='M9 13v2'/></svg></span><div class="fl">Claude.ai</div><div class="fd">Keep planning in chat</div></div>
+        <div class="flavor" data-flavor="cowork" style="--fc:#10b981;--fc-soft:#e7f8ef" onclick="handoffMint('cowork')">
+          <span class="ic"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 11.5 11.5 7a2.1 2.1 0 0 1 3 3L10 14.5'/><path d='m17 12.5-4.5 4.5a2.1 2.1 0 0 1-3-3L14 9.5'/></svg></span><div class="fl">Claude Cowork</div><div class="fd">Continue with your tools</div></div>
+      </div>
+      <div id="ho_result" style="display:none;margin-top:14px">
+        <div style="background:var(--accent-soft);border:1px solid rgba(108,155,255,.35);border-radius:12px;padding:14px 16px;margin-bottom:10px">
+          <p class="hint" style="margin:0 0 8px;font-size:13.5px;color:var(--ink)"><b>Step 1 — Name the new chat.</b> It's already on your clipboard — rename the chat in Claude's sidebar to:</p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="ho_name" readonly style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:700;background:var(--panel)">
+            <button class="btn primary sm" onclick="(copyText(document.getElementById('ho_name').value), toast('Name copied ✓'))"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='12' height='12' rx='2'/><path d='M5 15V5a2 2 0 0 1 2-2h10'/></svg> Copy name</button>
+          </div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px">
+          <p class="hint" style="margin:0 0 8px;font-size:13.5px"><b>Step 2 — Paste the kickoff prompt</b> as the first message. It carries the context and teaches Claude the new ID:</p>
+          <textarea id="ho_prompt" readonly style="min-height:180px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.45;background:var(--panel)"></textarea>
+          <button class="btn sm" style="margin-top:8px" onclick="(copyText(document.getElementById('ho_prompt').value), toast('Prompt copied ✓'))"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='12' height='12' rx='2'/><path d='M5 15V5a2 2 0 0 1 2-2h10'/></svg> Copy prompt</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="grow" style="flex:1"></div>
+      <button class="btn" onclick="closeHandoff()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Brief Assistant (prompt-to-Claude bridge) ===== -->
 <div class="overlay" id="overlay2" style="z-index:120">
   <div class="modal" style="max-width:620px">
@@ -594,7 +631,7 @@
    Data persists in localStorage. Export/Import = JSON backup.
    ============================================================ */
 
-const APP_VERSION = "1.5.1";
+const APP_VERSION = "1.6.0";
 const REPO_URL = "https://github.com/jackghazi/relay";
 const SUPPORT_URL = ""; // ← optional: your Gumroad / Ko-fi link; footer shows it only when set
 const STORE_KEY = "sessionTracker.v1";
@@ -663,18 +700,14 @@ function save(){
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
 function seed(){
-  // Demo data: three believable projects so the board, chains, and warnings all have something to show.
-  const p1 = {id:"p_app", name:"Recipe Box App", short:"RecipeBox", color:"#10b981", desc:"Meal-planning PWA heading to the app stores", claudeProject:"recipe box build", status:"active"};
-  const p2 = {id:"p_site", name:"Studio Website", short:"Studio", color:"#6C9BFF", desc:"Portfolio site rebuild with a booking form", claudeProject:"", status:"active"};
-  const p3 = {id:"p_ops", name:"Invoice Bot", short:"InvoiceBot", color:"#ec4899", desc:"Cowork automation that chases overdue invoices", claudeProject:"", status:"paused"};
-  const s1 = {id:"s1", serial:"CAI-0001", seq:1, title:"CAI-0001 · RecipeBox · product plan · #1 · 2026-06-01 · done", project:"p_app", source:"Claude.ai", date:"2026-06-01T10:05", summary:"Planned the MVP: pantry list, 3 screens, offline-first", brief:"Turn the recipe-box idea into a buildable MVP spec", accomplished:"Locked MVP scope and data model; wrote the kickoff prompt for Claude Code.", status:"done", continuedFrom:null, handoffAt:"2026-06-01T12:40", notes:""};
-  const s2 = {id:"s2", serial:"CC-0001", seq:2, title:"CC-0001 · RecipeBox · build sprint 1 · #2 · 2026-06-03 · done", project:"p_app", source:"Claude Code", date:"2026-06-03T09:15", summary:"Built the pantry + recipe screens against the spec", brief:"Execute the MVP spec from CAI-0001", accomplished:"Two of three screens working with local storage; meal-plan screen stubbed.", status:"done", continuedFrom:"s1", handoffAt:"2026-06-03T17:20", notes:""};
-  const s3 = {id:"s3", serial:"CC-0002", seq:3, title:"CC-0002 · RecipeBox · meal plan screen · #3 · 2026-06-08 · active", project:"p_app", source:"Claude Code", date:"2026-06-08T19:40", summary:"Finishing the meal-plan screen and weekly view", brief:"Pick up from HANDOFF_RECIPEBOX.md and finish screen 3", accomplished:"", status:"active", continuedFrom:"s2", handoffAt:"", notes:"Next: wire the grocery-list export"};
-  const s4 = {id:"s4", serial:"CAI-0002", seq:1, title:"CAI-0002 · Studio · design direction · #1 · 2026-05-26 · active", project:"p_site", source:"Claude.ai", date:"2026-05-26T14:30", summary:"Picked a bold editorial look; booking form specced", brief:"Choose a design direction and spec the booking flow", accomplished:"Direction chosen from three mockups; handoff written for the build session.", status:"active", continuedFrom:null, handoffAt:"2026-05-26T16:10", notes:"Waiting on final photography"};
-  const s5 = {id:"s5", serial:"CW-0001", seq:1, title:"CW-0001 · InvoiceBot · overdue chase flow · #1 · 2026-06-05 · done", project:"p_ops", source:"Cowork", date:"2026-06-05T11:00", summary:"Drafted the reminder-email flow with approval gates", brief:"Design the chase sequence: gentle → firm, owner approves each send", accomplished:"Flow approved; paused until the new bank feed is connected.", status:"done", continuedFrom:null, handoffAt:"", notes:""};
-  const h1 = {id:"h1", name:"HANDOFF_RECIPEBOX.md", writtenBy:"s2", usedBy:["s3"], note:"Two screens done; meal-plan screen stubbed with TODOs; data model final."};
-  const h2 = {id:"h2", name:"HANDOFF_STUDIO.md", writtenBy:"s4", usedBy:[], note:"Design direction + booking form spec, ready for a Claude Code build session."};
-  return { meta:{lastProject:"p_app", serials:{code:2, ai:2, cowork:1}}, projects:[p1,p2,p3], sessions:[s1,s2,s3,s4,s5], handoffs:[h1,h2] };
+  // Friendly starter data so the app isn't empty on first open.
+  const p1 = {id:"p_mm", name:"Madra Mór", short:"MadraMor", color:"#10b981", desc:"Groomers worldwide-proof site", status:"active"};
+  const p2 = {id:"p_pc", name:"Palm City", short:"PalmCity", color:"#3b6ef5", desc:"Marketing site + lead form", status:"active"};
+  const s1 = {id:"s1", title:"MadraMor · stockist strip · #1 · 2026-05-28 · done", project:"p_mm", source:"Claude Code", date:"2026-05-28T10:00", summary:"Set up stockist strip layout", brief:"Build the stockist strip and decide which regions are verifiable", accomplished:"Strip laid out; left China unconfirmed pending sources", status:"done", continuedFrom:null, handoffAt:"2026-05-28T12:40", notes:""};
+  const s2 = {id:"s2", title:"MadraMor · verifiable distro · #2 · 2026-06-01 · active", project:"p_mm", source:"Claude Code", date:"2026-06-01T14:30", summary:"Only publish verifiable distribution; China chip pending", brief:"Pick up from the stockist handoff; only ship verifiable claims", accomplished:"", status:"active", continuedFrom:"s1", handoffAt:"", notes:"Add China chip ~Jul–Aug 2026"};
+  const s3 = {id:"s3", title:"PalmCity · lead form · #1 · 2026-05-30 · active", project:"p_pc", source:"Cowork", date:"2026-05-30T09:15", summary:"Wire lead form to Waterline API", brief:"Connect the marketing lead form to the Waterline backend", accomplished:"", status:"active", continuedFrom:null, handoffAt:"", notes:""};
+  const h1 = {id:"h1", name:"HANDOFF_MADRAMOR.md", writtenBy:"s1", usedBy:["s2"], note:"Captured stockist strip structure + open China question"};
+  return { meta:{lastProject:"p_mm"}, projects:[p1,p2], sessions:[s1,s2,s3], handoffs:[h1] };
 }
 
 /* ---------- helpers ---------- */
@@ -903,7 +936,7 @@ function sessionCard(s,p,latestId){
     ${s.accomplished?`<p class="summary" style="margin-top:5px;color:var(--ok)"><b>✓ Accomplished:</b> ${esc(s.accomplished)}</p>`:""}
     <div class="s-tags">
       ${s.serial?`<span class="serial-plate" onclick="copyText('${esc(s.serial)}');toast('ID ${esc(s.serial)} copied ✓ — search any Claude app for it')" title="Permanent ID — click to copy, then search Claude's sidebar for it">${IC.tag} ${esc(s.serial)}</span>`:""}
-      ${isLatest?`<span class="latest-badge"><span class="pulse"></span>YOU ARE HERE · LATEST</span> <button class="btn sm" style="padding:4px 11px;font-size:11.5px;border-color:rgba(255,176,46,.4);color:var(--latest);background:var(--latest-soft)" onclick="copySessionContext('${s.id}')" title="Copy this session's context to start your next Claude chat">${IC.copy} Start next chat →</button>`:""}
+      ${isLatest?`<span class="latest-badge"><span class="pulse"></span>YOU ARE HERE · LATEST</span> <button class="btn sm" style="padding:4px 11px;font-size:11.5px;border-color:rgba(255,176,46,.4);color:var(--latest);background:var(--latest-soft)" onclick="openHandoff('${s.id}')" title="Mint the next session — pick its surface, get a chained kickoff prompt">${IC.copy} Start next chat →</button>`:""}
       <span class="status ${s.status}">${s.status}</span>
       <span class="src-tag">${sourceIcon(s.source)} ${esc(s.source||"—")}</span>
     </div>
@@ -1195,8 +1228,7 @@ function starterToggleNewProject(){
   const isNew = document.getElementById("st_project").value === "__new__";
   document.getElementById("st_newprojectWrap").style.display = isNew ? "block" : "none";
 }
-function buildFlavorPrompt(key, c){
-  const head = `${FLAVORS[key].label} — ${c.serial}\nProject: ${c.project}\n\nWhat this is about:\n${c.description}\n\nIMPORTANT — session tracking: this session's permanent ID is ${c.serial}. Remember it. Put "${c.serial}" at the top of every handoff, summary, or wrap-up you write in this session. If I ever ask "what session is this?" or "what's our ID?", answer with ${c.serial} and the project name.\n`;
+function flavorBody(key){
   let body;
   if(key==="code"){
     body = `\nPlease:\n1. Restate your understanding of the goal and ask any blocking questions.\n2. Explore the relevant files before changing anything, then propose a short plan.\n3. Work in small, verifiable steps — tell me what you changed, why, and how you checked it.\n4. Keep everything local: don't push, deploy, or share anything externally.`;
@@ -1205,8 +1237,14 @@ function buildFlavorPrompt(key, c){
   } else {
     body = `\nPlease:\n1. Restate the goal and tell me which connected tools or skills you'll use.\n2. Before anything that sends a message, changes a file, or is hard to undo, show me and wait for my OK.\n3. Work through it step by step, checking in at key decisions.`;
   }
-  const tail = `\n\nWhen we wrap up, end your reply with this exact block so I can log it in my tracker:\n\nID: ${c.serial}\nNAME: <2-5 word label>\nBRIEF: <what this session set out to do>\nACCOMPLISHED: <what got done + current state>\nHANDOFF: <what the next session should pick up, or "none">`;
-  return head + body + tail;
+  return body;
+}
+function wrapupBlock(serial){
+  return `\n\nWhen we wrap up, end your reply with this exact block so I can log it in my tracker:\n\nID: ${serial}\nNAME: <2-5 word label>\nBRIEF: <what this session set out to do>\nACCOMPLISHED: <what got done + current state>\nHANDOFF: <what the next session should pick up, or "none">`;
+}
+function buildFlavorPrompt(key, c){
+  const head = `${FLAVORS[key].label} — ${c.serial}\nProject: ${c.project}\n\nWhat this is about:\n${c.description}\n\nIMPORTANT — session tracking: this session's permanent ID is ${c.serial}. Remember it. Put "${c.serial}" at the top of every handoff, summary, or wrap-up you write in this session. If I ever ask "what session is this?" or "what's our ID?", answer with ${c.serial} and the project name.\n`;
+  return head + flavorBody(key) + wrapupBlock(c.serial);
 }
 function starterCreate(){
   const flavorKey = starterFlavor;
@@ -1240,6 +1278,50 @@ function starterCreate(){
   copyText(title);   // Step 1 first: the chat name is already on the clipboard
   render();
   toast("Session " + serial + " created — name copied ✓ (rename your chat, then copy the prompt)");
+}
+
+/* ----- Handoff minter: Start next chat -> mint the chained successor ----- */
+let handoffParentId = null;
+function openHandoff(id){
+  const s = sessById(id); if(!s) return;
+  handoffParentId = id;
+  document.getElementById("ho_from").innerHTML = `Continuing <b>${esc(s.serial||s.title)}</b> — pick where the next session lives. It gets its own serial, is chained to this one automatically, and its kickoff prompt carries the context forward.`;
+  document.getElementById("ho_result").style.display = "none";
+  document.getElementById("overlay4").classList.add("show");
+}
+function closeHandoff(){ document.getElementById("overlay4").classList.remove("show"); handoffParentId = null; }
+function handoffMint(flavorKey){
+  const s = sessById(handoffParentId); if(!s) return;
+  const p = projById(s.project);
+  const serial = serialFor(flavorKey, true);            // commit the counter
+  const date = nowLocal();
+  const topic = retroTopic(s.aka || s.title) || "continue";
+  const seq = db.sessions.filter(x=>x.project===s.project).length + 1;
+  const title = `${serial} · ${p?shortName(p):"?"} · ${topic} · #${seq} · ${date.slice(0,10)} · active`;
+  const brief = `Continue from ${s.serial||s.title}: ${topic}`;
+  db.sessions.push({
+    id:uid(), serial, seq, title, project:s.project, source:FLAVORS[flavorKey].source, date,
+    summary:brief.slice(0,90), brief, accomplished:"",
+    status:"active", continuedFrom:s.id, handoffAt:"", notes:""
+  });
+  save();
+  document.getElementById("ho_name").value = title;
+  document.getElementById("ho_prompt").value = buildHandoffPrompt(flavorKey, serial, s, p);
+  document.getElementById("ho_result").style.display = "block";
+  copyText(title);   // Step 1 first: the chat name is already on the clipboard
+  render();
+  toast("Session " + serial + " minted & chained ✓ — name copied (rename the new chat, then copy the prompt)");
+}
+function buildHandoffPrompt(key, serial, s, p){
+  const writes = db.handoffs.filter(h=>h.writtenBy===s.id);
+  let ctx = `Previous session: ${s.title}\nWhen: ${fmtDate(s.date)}\n`;
+  if(s.summary) ctx += `Summary: ${s.summary}\n`;
+  if(s.brief) ctx += `Brief: ${s.brief}\n`;
+  if(s.accomplished) ctx += `Accomplished: ${s.accomplished}\n`;
+  if(s.notes) ctx += `Notes / next: ${s.notes}\n`;
+  writes.forEach(h=> ctx += `Handoff written: ${h.name}${h.note?` — ${h.note}`:""}\n`);
+  const head = `${FLAVORS[key].label} — ${serial}\nProject: ${p?p.name:"(none)"}\nThis session continues ${s.serial||s.title}.\n\nContext to pick up from:\n${ctx}\nIMPORTANT — session tracking: this session's permanent ID is ${serial}${s.serial?` and it continues ${s.serial}`:""}. Remember it. Put "${serial}" at the top of every handoff, summary, or wrap-up you write in this session. If I ever ask "what session is this?" or "what's our ID?", answer with ${serial}${s.serial?` (continuing ${s.serial})`:""} and the project name.\n`;
+  return head + flavorBody(key) + wrapupBlock(serial);
 }
 
 /* ----- Project modal ----- */
@@ -1740,7 +1822,7 @@ function viewBoard(){
         <span class="grow"></span><span class="cdate">${fmtDate(s.date)}</span></div>
       <div class="j-title" onclick="jumpTo('${s.id}')">${esc(s.title)}</div>
       ${s.notes?`<div class="j-note">${IC.note} ${esc(s.notes)}</div>`:""}
-      <div class="s-actions"><button class="btn sm" onclick="copySessionContext('${s.id}')">${IC.copy} Start next chat →</button>
+      <div class="s-actions"><button class="btn sm" onclick="openHandoff('${s.id}')">${IC.copy} Start next chat →</button>
         <button class="btn ghost sm" onclick="jumpTo('${s.id}')">Open in timeline</button></div>
     </div>`;
   });
