@@ -1,0 +1,2256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relay — mission control for your Claude sessions</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+  :root{
+    --bg:#0E131D;
+    --bg-deep:#0A0E16;
+    --panel:#151C2A;
+    --panel2:#1A2334;
+    --ink:#E9EEF7;
+    --ink-soft:#9DA9BF;
+    --ink-faint:#67738A;
+    --line:#222C40;
+    --line-strong:#33405C;
+    --accent:#6C9BFF;
+    --accent-deep:#3D6FE8;
+    --accent-soft:rgba(108,155,255,.13);
+    --latest:#FFB02E;
+    --latest-soft:rgba(255,176,46,.14);
+    --ok:#3DDC97;
+    --ok-soft:rgba(61,220,151,.13);
+    --hoff:#E8C268;
+    --hoff-soft:rgba(232,194,104,.10);
+    --danger:#FF7A7A;
+    --warn:#FFB02E;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    --radius:12px;
+    --radius-sm:8px;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --display:'Space Grotesk','Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:
+      radial-gradient(1200px 500px at 80% -180px, rgba(61,111,232,.14), transparent 60%),
+      radial-gradient(900px 420px at -10% 0, rgba(255,176,46,.05), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-size:15.5px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  .brand .ic-logo{width:18px;height:18px}
+  svg.ic{width:15px;height:15px;flex:none;vertical-align:-2px}
+  .wrap{max-width:1100px;margin:0 auto;padding:24px 24px 90px}
+
+  /* ---- Header ---- */
+  header.top{
+    position:sticky;top:0;z-index:30;
+    background:rgba(10,14,22,.82);
+    backdrop-filter:saturate(160%) blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .top-inner{max-width:1100px;margin:0 auto;padding:13px 24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.01em}
+  .brand .logo{
+    width:34px;height:34px;border-radius:9px;flex:none;
+    background:linear-gradient(160deg,#1E2A44,#101726);
+    border:1px solid var(--line-strong);
+    display:flex;align-items:center;justify-content:center;color:var(--latest);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .brand small{display:block;font-family:var(--mono);font-weight:600;font-size:10px;color:var(--ink-faint);letter-spacing:.14em;text-transform:uppercase}
+  .grow{flex:1 1 auto}
+  .search{position:relative;flex:1 1 260px;max-width:400px;min-width:190px}
+  .search input{
+    width:100%;padding:9px 14px 9px 36px;border:1px solid var(--line-strong);
+    border-radius:9px;font-size:14px;background:var(--bg-deep);color:var(--ink);font-family:inherit;
+  }
+  .search input::placeholder{color:var(--ink-faint)}
+  .search input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.5}
+
+  /* ---- Buttons ---- */
+  .btn{
+    border:1px solid var(--line-strong);background:var(--panel2);color:var(--ink);
+    padding:8px 13px;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:.13s;font-family:inherit;
+  }
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.primary{background:var(--accent-deep);border-color:transparent;color:#fff}
+  .btn.primary:hover{background:#3463d6;color:#fff}
+  .btn.ghost{border-color:transparent;background:transparent;color:var(--ink-soft)}
+  .btn.ghost:hover{background:var(--accent-soft);color:var(--accent)}
+  .btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+  .btn.sm{padding:5px 10px;font-size:12.5px}
+  .btn.amber{border-color:rgba(255,176,46,.4);color:var(--latest);background:var(--latest-soft)}
+  .btn.amber:hover{border-color:var(--latest)}
+
+  /* ---- Tabs ---- */
+  .tabs{display:flex;gap:3px;background:var(--bg-deep);border:1px solid var(--line);padding:4px;border-radius:11px;flex-wrap:wrap}
+  .tab{
+    border:none;background:transparent;color:var(--ink-soft);font-weight:600;font-size:13.5px;
+    font-family:var(--display);letter-spacing:.02em;
+    padding:7px 15px;border-radius:8px;cursor:pointer;transition:.13s;
+  }
+  .tab:hover{color:var(--ink)}
+  .tab.active{background:var(--panel2);color:var(--latest);box-shadow:inset 0 0 0 1px var(--line-strong)}
+
+  /* ---- Filter bar ---- */
+  .filterbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:20px 0 6px}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:999px;
+    border:1px solid var(--line-strong);background:var(--panel);font-size:12.5px;font-weight:600;
+    cursor:pointer;color:var(--ink-soft);transition:.12s;
+  }
+  .chip:hover{color:var(--ink);border-color:var(--ink-faint)}
+  .chip .dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 6px currentColor}
+  .chip.active{border-color:var(--latest);color:var(--ink);background:var(--panel2)}
+  .chip.all.active{background:var(--ink);color:var(--bg-deep);border-color:var(--ink)}
+
+  .section-title{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.16em;margin:28px 0 14px}
+
+  /* ---- Project cards ---- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .pcard{
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:17px;cursor:pointer;position:relative;overflow:hidden;transition:.15s;
+  }
+  .pcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--pc,#6C9BFF);box-shadow:0 0 14px var(--pc,#6C9BFF)}
+  .pcard:hover{transform:translateY(-2px);border-color:var(--line-strong);box-shadow:var(--shadow)}
+  .pcard.sel{outline:1px solid var(--latest);outline-offset:0}
+  .pcard h3{margin:0 0 3px;font-family:var(--display);font-size:17px;letter-spacing:.01em;display:flex;align-items:center;gap:9px}
+  .pcard .desc{color:var(--ink-soft);font-size:13.5px;margin:6px 0 14px;min-height:20px}
+  .pcard .meta{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--ink-faint)}
+  .status{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.08em}
+  .status.active{background:var(--ok-soft);color:var(--ok)}
+  .status.paused{background:var(--latest-soft);color:var(--latest)}
+  .status.done{background:rgba(157,169,191,.12);color:var(--ink-soft)}
+  .status.abandoned{background:rgba(255,122,122,.12);color:var(--danger)}
+
+  /* ---- Timeline ---- */
+  .proj-group{margin-bottom:36px}
+  .proj-head{display:flex;align-items:center;gap:11px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .proj-head .dot{width:12px;height:12px;border-radius:50%;flex:none;box-shadow:0 0 10px currentColor}
+  .proj-head h2{margin:0;font-family:var(--display);font-size:18px;letter-spacing:.01em}
+  .proj-head .count{font-family:var(--mono);color:var(--ink-faint);font-size:11px;font-weight:600;letter-spacing:.06em}
+
+  .timeline{position:relative;margin-left:8px;padding-left:28px}
+  .timeline::before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--line-strong),var(--line))}
+  .scard{
+    position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:13px;transition:.13s;
+  }
+  .scard:hover{border-color:var(--line-strong)}
+  .scard::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:var(--pc,#6C9BFF);opacity:.85}
+  .scard::before{
+    content:"";position:absolute;left:-28px;top:21px;width:11px;height:11px;border-radius:50%;
+    background:var(--pc,#6C9BFF);border:3px solid var(--bg);box-shadow:0 0 0 1px var(--line-strong),0 0 10px var(--pc,#6C9BFF);
+  }
+  .scard.latest{border-color:rgba(255,176,46,.5);background:linear-gradient(180deg,rgba(255,176,46,.05),var(--panel) 55%)}
+  .scard.latest::before{background:var(--latest);box-shadow:0 0 0 1px var(--latest),0 0 14px var(--latest);animation:beacon 2.2s ease-in-out infinite}
+  @keyframes beacon{0%,100%{box-shadow:0 0 0 1px var(--latest),0 0 6px var(--latest)}50%{box-shadow:0 0 0 1px var(--latest),0 0 18px var(--latest)}}
+  .scard .s-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .scard h4{margin:0;font-size:15px;font-weight:600;letter-spacing:0;line-height:1.4}
+  .scard .date{font-family:var(--mono);font-size:11px;color:var(--ink-faint);font-weight:600;white-space:nowrap;flex:none;padding-top:2px}
+  .scard .summary{color:var(--ink-soft);font-size:13.5px;margin:7px 0 0}
+  .s-tags{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px}
+  .latest-badge{
+    display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;font-weight:700;
+    letter-spacing:.1em;color:var(--latest);background:var(--latest-soft);
+    border:1px solid rgba(255,176,46,.4);padding:4px 11px;border-radius:999px;
+  }
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--latest);box-shadow:0 0 8px var(--latest);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .serial-plate{
+    font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;
+    padding:3px 10px;border-radius:6px;cursor:pointer;
+    color:var(--latest);background:var(--bg-deep);border:1px solid rgba(255,176,46,.35);
+    display:inline-flex;align-items:center;gap:6px;transition:.12s;
+  }
+  .serial-plate:hover{border-color:var(--latest);box-shadow:0 0 10px rgba(255,176,46,.25)}
+  .src-tag{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.04em;padding:3px 9px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--ink-soft);display:inline-flex;align-items:center;gap:6px}
+  .continued{
+    display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--accent);
+    background:var(--accent-soft);padding:5px 11px;border-radius:8px;margin-top:11px;cursor:pointer;
+    border:1px dashed rgba(108,155,255,.45);transition:.12s;
+  }
+  .continued:hover{border-style:solid;border-color:var(--accent)}
+  .s-actions{display:flex;gap:3px;margin-top:10px;flex-wrap:wrap}
+  .hoff-line{margin-top:10px;font-size:12.5px;color:var(--ink-soft);display:flex;align-items:flex-start;gap:8px;background:var(--hoff-soft);border:1px solid rgba(232,194,104,.25);border-radius:8px;padding:8px 11px}
+  .hoff-line b{color:var(--hoff);font-weight:700}
+  .hoff-line.used{background:var(--ok-soft);border-color:rgba(61,220,151,.25)}
+  .hoff-line.used b{color:var(--ok)}
+  .hoff-line.written{background:var(--accent-soft);border-color:rgba(108,155,255,.3)}
+  .hoff-line.written b{color:var(--accent)}
+
+  /* ---- Chain ---- */
+  .chain-wrap{background:var(--bg-deep);border:1px solid var(--line);border-radius:var(--radius);padding:26px 24px;overflow-x:auto;
+    background-image:radial-gradient(circle, rgba(108,155,255,.07) 1px, transparent 1px);background-size:22px 22px}
+  .chain{display:flex;align-items:stretch;gap:0;min-width:min-content;padding:10px 0}
+  .cnode{
+    flex:0 0 240px;background:var(--panel);border:1px solid var(--line-strong);border-top:3px solid var(--pc,#6C9BFF);
+    border-radius:11px;padding:13px 14px;position:relative;box-shadow:var(--shadow);
+  }
+  .cnode.latest{border-color:rgba(255,176,46,.55);border-top-color:var(--latest);box-shadow:0 0 0 1px rgba(255,176,46,.3),0 0 24px rgba(255,176,46,.12)}
+  .cnode .seq{position:absolute;top:-12px;left:12px;background:var(--pc,#6C9BFF);color:#0A0E16;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;padding:2px 9px;border-radius:999px}
+  .cnode.latest .seq{background:var(--latest)}
+  .cnode h5{margin:7px 0 4px;font-size:13.5px;font-weight:600;line-height:1.4;color:var(--ink)}
+  .cnode .cdate{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);font-weight:600}
+  .cnode .csum{font-size:12px;color:var(--ink-soft);margin-top:6px}
+  .cnode .cstatus{margin-top:9px}
+  .carrow{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--line-strong);position:relative}
+  .carrow svg{width:28px;height:28px}
+  .carrow .hlabel{position:absolute;top:-2px;font-size:9.5px;font-weight:700;text-align:center;width:92px;left:50%;transform:translateX(-50%)}
+  .hoff-written{color:var(--hoff);background:var(--hoff-soft);border:1px solid rgba(232,194,104,.3);border-radius:5px;padding:2px 6px;margin-bottom:3px;line-height:1.25;font-family:var(--mono);font-size:9px}
+  .hoff-used{color:var(--ok);background:var(--ok-soft);border:1px solid rgba(61,220,151,.3);border-radius:5px;padding:2px 6px;line-height:1.25;font-family:var(--mono);font-size:9px}
+
+
+  .carrow.nolink{color:var(--line)}
+  .carrow.skip{color:var(--accent);opacity:.75}
+  .carrow.broken{color:var(--danger);opacity:.8}
+  .hoff-skip{color:var(--accent);background:var(--accent-soft);border:1px solid rgba(108,155,255,.3);border-radius:5px;padding:2px 6px;line-height:1.25;font-family:var(--mono);font-size:9px}
+  .hoff-broken{color:var(--danger);background:rgba(255,122,122,.1);border:1px solid rgba(255,122,122,.35);border-radius:5px;padding:2px 6px;line-height:1.25;font-family:var(--mono);font-size:9px}
+
+  /* ---- Handoffs ---- */
+  .hcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px 18px;margin-bottom:12px}
+  .hcard h4{margin:0 0 4px;font-size:14.5px;font-family:var(--mono);font-weight:600;display:flex;align-items:center;gap:9px;color:var(--ink)}
+  .hflow{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;align-items:center;font-size:12.5px}
+  .hflow .pill{padding:4px 10px;border-radius:7px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+  .hflow .from{background:var(--hoff-soft);color:var(--hoff);border:1px solid rgba(232,194,104,.25)}
+  .hflow .to{background:var(--ok-soft);color:var(--ok);border:1px solid rgba(61,220,151,.25)}
+  .hflow .arrow{color:var(--ink-faint)}
+  .hcard .note{color:var(--ink-soft);font-size:13.5px;margin-top:6px}
+
+  /* ---- Empty states ---- */
+  .empty{text-align:center;padding:64px 20px;color:var(--ink-faint)}
+  .empty .big{margin-bottom:14px;display:flex;justify-content:center}
+  .empty .big svg{width:46px;height:46px;color:var(--line-strong)}
+  .empty h3{font-family:var(--display);color:var(--ink-soft);margin:0 0 6px;font-weight:700}
+  .empty p{margin:0 auto 18px;max-width:380px;font-size:14px}
+
+  /* ---- Modal ---- */
+  .overlay{position:fixed;inset:0;background:rgba(5,8,14,.66);backdrop-filter:blur(3px);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line-strong);border-radius:16px;width:100%;max-width:540px;box-shadow:0 30px 80px rgba(0,0,0,.55);animation:rise .18s ease}
+  @keyframes rise{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-head{padding:19px 24px 0;display:flex;justify-content:space-between;align-items:center}
+  .modal-head h2{margin:0;font-family:var(--display);font-size:18px;letter-spacing:.01em}
+  .modal-body{padding:17px 24px 8px}
+  .modal-foot{padding:14px 24px 20px;display:flex;gap:10px;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:14px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:6px}
+  .field input,.field select,.field textarea{
+    width:100%;padding:9px 12px;border:1px solid var(--line-strong);border-radius:9px;font-size:14px;
+    font-family:inherit;color:var(--ink);background:var(--bg-deep);
+  }
+  .field select option{background:var(--panel)}
+  .field textarea{resize:vertical;min-height:72px}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .field .hint,.hint{font-size:12px;color:var(--ink-faint);margin-top:5px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .swatches{display:flex;gap:9px;flex-wrap:wrap}
+  .swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.1s}
+  .swatch:hover{transform:scale(1.12)}
+  .swatch.sel{border-color:#fff;box-shadow:0 0 0 2px var(--bg-deep) inset}
+  .auto-name{display:flex;gap:8px;align-items:center}
+  .auto-name input{flex:1}
+  .multiselect{border:1px solid var(--line-strong);border-radius:9px;padding:8px;max-height:140px;overflow-y:auto;background:var(--bg-deep)}
+  .ms-item{display:flex;align-items:center;gap:8px;padding:6px;border-radius:7px;font-size:13.5px;cursor:pointer}
+  .ms-item:hover{background:var(--panel2)}
+  .ms-item input{width:auto}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg-deep);padding:11px 20px;border-radius:10px;font-size:13.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:200;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---- Starter form ---- */
+  .starter-banner{
+    background:linear-gradient(150deg,#16203A,#0E1424);
+    border-bottom:1px solid var(--line-strong);
+    padding:19px 24px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;position:relative;overflow:hidden;
+  }
+  .starter-banner::after{content:"";position:absolute;right:-40px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,176,46,.14),transparent 65%)}
+  .starter-banner h2{margin:0;color:var(--ink);font-family:var(--display);font-size:19px}
+  .starter-banner p{margin:4px 0 0;color:var(--ink-soft);font-size:12.5px}
+  .starter-banner .btn{color:var(--ink-soft);border-color:transparent;background:transparent;position:relative;z-index:1}
+  .starter-banner .btn:hover{color:var(--ink)}
+  .flavor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px}
+  .flavor{
+    border:1px solid var(--line-strong);border-radius:12px;padding:14px 10px;cursor:pointer;
+    text-align:center;transition:.14s;background:var(--bg-deep);
+  }
+  .flavor:hover{border-color:var(--fc);transform:translateY(-2px)}
+  .flavor.sel{border-color:var(--fc);background:var(--panel2);box-shadow:0 0 0 1px var(--fc),0 0 18px -6px var(--fc)}
+  .flavor .ic{display:flex;justify-content:center;margin-bottom:8px;color:var(--fc)}
+  .flavor .ic svg{width:22px;height:22px}
+  .flavor .fl{font-family:var(--display);font-weight:700;font-size:13px;color:var(--ink)}
+  .flavor .fd{font-size:10.5px;color:var(--ink-faint);margin-top:3px;line-height:1.3}
+  .serial-ticket{
+    display:flex;align-items:center;gap:12px;margin:16px 0;padding:13px 18px;border-radius:11px;
+    background:var(--bg-deep);border:1px dashed var(--line-strong);color:var(--ink);position:relative;
+  }
+  .serial-ticket::before,.serial-ticket::after{
+    content:"";position:absolute;width:16px;height:16px;border-radius:50%;background:var(--panel);
+    border:1px solid var(--line-strong);top:50%;transform:translateY(-50%);
+  }
+  .serial-ticket::before{left:-9px;border-left-color:transparent}
+  .serial-ticket::after{right:-9px;border-right-color:transparent}
+  .serial-ticket .st-label{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-faint);font-weight:700}
+  .serial-ticket .st-serial{font-family:var(--mono);font-size:21px;font-weight:700;letter-spacing:.06em;color:var(--latest);text-shadow:0 0 16px rgba(255,176,46,.35)}
+  .serial-ticket .st-auto{margin-left:auto;font-size:10.5px;color:var(--ink-faint)}
+
+
+  /* ---- Board ---- */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:22px 0 14px}
+  .stat{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .stat .sv{font-family:var(--display);font-size:30px;font-weight:700;line-height:1.1}
+  .stat .sl{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px}
+  .stat.warn{border-color:rgba(255,176,46,.45)}
+  .stat.warn .sv{color:var(--latest)}
+  .panel-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+  .pc-head{display:flex;align-items:center;gap:9px;font-family:var(--display);font-weight:700;font-size:14.5px;margin-bottom:13px;color:var(--ink)}
+  .pc-head svg.ic{color:var(--accent)}
+  .jump-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .jump{background:var(--bg-deep);border:1px solid var(--line);border-left:3px solid var(--pc,#6C9BFF);border-radius:10px;padding:12px 14px}
+  .jump .j-top{display:flex;align-items:center;gap:8px;font-size:12.5px}
+  .jump .j-top .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .jump .cdate{font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+  .jump .j-title{font-size:13.5px;font-weight:600;margin:8px 0 2px;cursor:pointer;line-height:1.4}
+  .jump .j-title:hover{color:var(--accent)}
+  .jump .j-note{font-size:12px;color:var(--ink-soft);margin-top:5px;display:flex;gap:6px;align-items:flex-start}
+  .attn{display:flex;align-items:center;gap:11px;font-size:13px;color:var(--ink-soft);padding:10px 4px;border-top:1px solid var(--line)}
+  .attn:first-of-type{border-top:none}
+  .attn b{color:var(--ink)}
+  .attn .btn{margin-left:auto;flex:none}
+
+  /* ---- Command palette ---- */
+  .overlay.pal{align-items:flex-start;padding-top:14vh}
+  .palette{background:var(--panel);border:1px solid var(--line-strong);border-radius:14px;width:100%;max-width:560px;box-shadow:0 30px 90px rgba(0,0,0,.6);overflow:hidden;animation:rise .15s ease}
+  .palette input{width:100%;border:none;background:transparent;padding:16px 18px;font-size:15.5px;color:var(--ink);font-family:inherit;border-bottom:1px solid var(--line)}
+  .palette input:focus{outline:none}
+  .pal-item{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;font-size:14px}
+  .pal-item.sel{background:var(--accent-soft)}
+  .pal-item .pi-ic{color:var(--ink-faint);display:flex;width:16px;justify-content:center}
+  .pal-item.sel .pi-ic{color:var(--accent)}
+  .pal-item .pi-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pal-item .pi-label small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em}
+  kbd{font-family:var(--mono);font-size:10px;color:var(--ink-soft);background:var(--bg-deep);border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:5px;padding:2px 6px}
+  .pal-foot{padding:9px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-faint)}
+
+  /* ---- Welcome ---- */
+  .wstep{display:flex;gap:14px;margin-bottom:16px;font-size:13.5px;color:var(--ink-soft);line-height:1.55}
+  .wstep b{color:var(--ink)}
+  .wstep code{font-family:var(--mono);font-size:11.5px;color:var(--latest);background:var(--bg-deep);padding:1px 6px;border-radius:5px;border:1px solid var(--line)}
+  .wstep .wn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-family:var(--mono);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(108,155,255,.35);margin-top:2px}
+
+
+  /* ---- Project list view ---- */
+  .prow{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px 9px 0;margin-bottom:7px;cursor:pointer;position:relative;overflow:hidden;transition:.12s}
+  .prow:hover{border-color:var(--line-strong);transform:translateX(2px)}
+  .prow .pr-bar{width:4px;align-self:stretch;background:var(--pc);box-shadow:0 0 10px var(--pc);flex:none;margin-right:2px}
+  .prow .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .prow .pr-name{flex:1;min-width:0;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .pr-name small{display:block;font-weight:400;font-size:12px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .pr-meta{font-size:12px;color:var(--ink-soft);flex:none}
+  .prow .pr-date{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);flex:none;width:84px;text-align:right}
+  .prow-section{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin:6px 0 9px}
+  .cproj{font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid rgba(108,155,255,.3);border-radius:5px;padding:1px 7px;margin-left:8px;vertical-align:1px;white-space:nowrap}
+  .proj-pick{padding:8px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--panel2);color:var(--ink);font-size:13.5px;font-weight:600;font-family:inherit;min-width:230px}
+  .proj-pick:focus{outline:none;border-color:var(--accent)}
+  .caret{display:inline-block;color:var(--ink-faint);transition:transform .15s;font-size:13px;width:14px}
+  .caret.closed{transform:rotate(-90deg)}
+  .proj-head:hover .caret{color:var(--ink)}
+
+
+  .foot{max-width:1100px;margin:30px auto 0;padding:14px 24px 26px;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em;border-top:1px solid var(--line)}
+  .foot a{color:var(--ink-soft)}
+  .demo-bar{display:flex;align-items:center;gap:10px;margin:20px 0 0;padding:10px 14px;border:1px dashed rgba(255,176,46,.45);border-radius:10px;background:var(--latest-soft);font-size:13px;color:var(--ink-soft)}
+  .demo-bar svg.ic{color:var(--latest)}
+  .demo-bar .btn{margin-left:auto}
+
+
+  .brand small a.srf{cursor:pointer;transition:.12s}
+  .brand small a.srf:hover{color:var(--latest)}
+  .where{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .where-row{display:flex;gap:12px;padding:9px 13px;border-top:1px solid var(--line);font-size:12.5px}
+  .where-row:first-child{border-top:none}
+  .where-row .wt{flex:0 0 130px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding-top:2px}
+  .where-row .wv{color:var(--ink-soft);font-family:var(--mono);font-size:11.5px;line-height:1.5;word-break:break-all}
+
+  /* ---- Daylight theme ---- */
+  [data-theme="light"]{
+    --bg:#F2F4F9; --bg-deep:#E7EBF3; --panel:#FFFFFF; --panel2:#F7F9FD;
+    --ink:#1B2334; --ink-soft:#56627A; --ink-faint:#8C97AC;
+    --line:#DFE5EF; --line-strong:#C4CDDD;
+    --accent:#3D6FE8; --accent-deep:#3D6FE8; --accent-soft:rgba(61,111,232,.10);
+    --latest:#C77700; --latest-soft:rgba(199,119,0,.10);
+    --ok:#0E9F6E; --ok-soft:rgba(14,159,110,.10);
+    --hoff:#A8821D; --hoff-soft:rgba(168,130,29,.10);
+    --danger:#D64545;
+    --shadow:0 1px 2px rgba(25,35,60,.06),0 10px 28px rgba(25,35,60,.10);
+  }
+  [data-theme="light"] body, body[data-x]{ }
+  [data-theme="light"] body{
+    background:
+      radial-gradient(1200px 500px at 80% -180px, rgba(61,111,232,.08), transparent 60%),
+      var(--bg);
+  }
+  [data-theme="light"] header.top{background:rgba(248,250,253,.85)}
+  [data-theme="light"] .toast{background:var(--ink);color:#fff}
+  [data-theme="light"] .cnode .seq{color:#fff}
+  [data-theme="light"] .chip.all.active{color:#fff}
+  [data-theme="light"] .starter-banner{background:linear-gradient(150deg,#E9EFFC,#F6F8FD)}
+  [data-theme="light"] .serial-ticket .st-serial{text-shadow:none}
+
+  @media (max-width:560px){
+    .flavor-grid{grid-template-columns:1fr}
+    .row2{grid-template-columns:1fr}
+    .top-inner{padding:12px 16px}
+    .wrap{padding:18px 16px 60px}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <span class="logo"><svg class='ic-logo' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='2' fill='currentColor' stroke='none'/><path d='M12 2a10 10 0 0 1 10 10'/><path d='M12 6a6 6 0 0 1 6 6'/><path d='m13.5 10.5 5-5'/><circle cx='12' cy='12' r='10' opacity='.35'/></svg></span>
+      <span>Relay<small><a class="srf" onclick="openSurfaceModal('code')">Claude Code</a> · <a class="srf" onclick="openSurfaceModal('ai')">Claude.ai</a> · <a class="srf" onclick="openSurfaceModal('cowork')">Cowork</a></small></span>
+    </div>
+    <div class="grow"></div>
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="text" placeholder="Search…  (Ctrl+K)" autocomplete="off">
+    </div>
+    <button class="btn sm" id="fsBtn" onclick="openDataFileModal()" style="display:none">💾 Data file</button>
+    <button class="btn ghost sm" id="themeBtn" onclick="toggleTheme()" title="Switch light / dark"></button>
+    <button class="btn amber" onclick="openSyncModal()" title="Paste an update block from Claude — fills the tracker automatically"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a9 9 0 1 1-2.64-6.36'/><path d='M21 3v6h-6'/></svg> Sync</button>
+    <button class="btn" onclick="doExport()" title="Download a backup JSON"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12'/><path d='m7 11 5 5 5-5'/><path d='M5 21h14'/></svg> Export</button>
+    <button class="btn" onclick="document.getElementById('importFile').click()" title="Restore from a backup JSON"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 21V9'/><path d='m7 13 5-5 5 5'/><path d='M5 3h14'/></svg> Import</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none" onchange="doImport(event)">
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-view="board">Board</button>
+      <button class="tab" data-view="projects">Projects</button>
+      <button class="tab" data-view="timeline">Timeline</button>
+      <button class="tab" data-view="chain">Chain</button>
+      <button class="tab" data-view="handoffs">Handoffs</button>
+    </div>
+    <div class="grow"></div>
+    <button class="btn primary" onclick="openStarter()" ><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M13 2 4 14h6l-1 8 9-12h-6Z'/></svg> Start new</button>
+    <button class="btn" id="addBtn" onclick="quickAdd()"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M5 12h14'/></svg> Add</button>
+  </div>
+
+  <!-- project filter chips -->
+  <div class="filterbar" id="filterbar"></div>
+
+  <!-- weekly backup reminder -->
+  <div id="backupNudge" style="display:none;align-items:center;gap:12px;background:var(--latest-soft);border:1px solid rgba(255,176,46,.35);color:var(--latest);padding:11px 15px;border-radius:12px;margin:16px 0 2px;font-size:14px">
+    <span><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M8 3v4M16 3v4M3 11h18'/></svg> <b>Backup reminder</b> — it's been over a week since your last export. Keep a fresh copy safe.</span>
+    <div style="flex:1"></div>
+    <button class="btn primary sm" onclick="doExport()"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12'/><path d='m7 11 5 5 5-5'/><path d='M5 21h14'/></svg> Export now</button>
+    <button class="btn ghost sm" onclick="hideNudge()">Later</button>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<!-- ===== Modal ===== -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head"><h2 id="mTitle">Edit</h2><button class="btn ghost sm" onclick="closeModal()">✕</button></div>
+    <div class="modal-body" id="mBody"></div>
+    <div class="modal-foot">
+      <button class="btn danger sm" id="mDelete" onclick="onDelete()" style="display:none">Delete</button>
+      <div class="grow" style="flex:1"></div>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="onSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== New-session Starter (flavor → serial → prompt) ===== -->
+<div class="overlay" id="overlay3" style="z-index:110">
+  <div class="modal" style="max-width:640px;overflow:hidden">
+    <div class="starter-banner">
+      <div>
+        <h2>Start a new Claude session</h2>
+        <p>Pick a flavor, describe it, get a ready-to-paste prompt.</p>
+      </div>
+      <button class="btn ghost sm" onclick="closeStarter()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label style="display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:9px">Which Claude?</label>
+      <div class="flavor-grid">
+        <div class="flavor" data-flavor="code" style="--fc:#3b6ef5;--fc-soft:#eaf0ff" onclick="selectFlavor('code')">
+          <span class="ic"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m5 8 4 4-4 4'/><path d='M12 18h7'/><rect x='2' y='3' width='20' height='18' rx='2'/></svg></span><div class="fl">Claude Code</div><div class="fd">Build &amp; edit code locally</div></div>
+        <div class="flavor" data-flavor="ai" style="--fc:#8b5cf6;--fc-soft:#f1ebfe" onclick="selectFlavor('ai')">
+          <span class="ic"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.4-2.4A8 8 0 1 1 21 12Z'/></svg></span><div class="fl">Claude.ai</div><div class="fd">Think, write &amp; plan</div></div>
+        <div class="flavor" data-flavor="cowork" style="--fc:#10b981;--fc-soft:#e7f8ef" onclick="selectFlavor('cowork')">
+          <span class="ic"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 11.5 11.5 7a2.1 2.1 0 0 1 3 3L10 14.5'/><path d='m17 12.5-4.5 4.5a2.1 2.1 0 0 1-3-3L14 9.5'/></svg></span><div class="fl">Claude Cowork</div><div class="fd">Work with your tools</div></div>
+      </div>
+
+      <div class="serial-ticket">
+        <span class="st-label">Serial</span>
+        <span class="st-serial" id="st_serial">CC-0001</span>
+        <span class="st-auto">auto-assigned · added to the name</span>
+      </div>
+
+      <div class="field"><label>Project</label>
+        <select id="st_project" onchange="starterToggleNewProject()"></select>
+      </div>
+      <div class="field" id="st_newprojectWrap"><label>New project name</label><input id="st_newproject" placeholder="e.g. Newsletter revamp"></div>
+      <div class="field"><label>What is this new project / session all about?</label>
+        <textarea id="st_desc" placeholder="Describe what you want to get done…" style="min-height:92px"></textarea>
+      </div>
+      <div id="st_result" style="display:none">
+        <div style="background:var(--accent-soft);border:1px solid rgba(108,155,255,.35);border-radius:12px;padding:14px 16px;margin-bottom:10px">
+          <p class="hint" style="margin:0 0 8px;font-size:13.5px;color:var(--ink)"><b>Step 1 — Name the chat.</b> Start your new Claude chat, then immediately rename it in the sidebar to this exact name (so the tracker and Claude always match):</p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="st_name" readonly style="flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:700;background:var(--panel)">
+            <button class="btn primary sm" onclick="(copyText(document.getElementById('st_name').value), toast('Name copied ✓ — rename your Claude chat to this'))">${IC.tag} Copy name</button>
+          </div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px">
+          <p class="hint" style="margin:0 0 8px;font-size:13.5px"><b>Step 2 — Paste the kickoff prompt</b> as the first message. It teaches Claude this session's ID so every handoff carries it:</p>
+          <textarea id="st_prompt" readonly style="min-height:180px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.45;background:var(--panel)"></textarea>
+          <button class="btn sm" style="margin-top:8px" onclick="(copyText(document.getElementById('st_prompt').value), toast('Prompt copied ✓'))"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='12' height='12' rx='2'/><path d='M5 15V5a2 2 0 0 1 2-2h10'/></svg> Copy prompt</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="grow" style="flex:1"></div>
+      <button class="btn" onclick="closeStarter()">Close</button>
+      <button class="btn primary" onclick="starterCreate()"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M13 2 4 14h6l-1 8 9-12h-6Z'/></svg> Create &amp; generate prompt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Brief Assistant (prompt-to-Claude bridge) ===== -->
+<div class="overlay" id="overlay2" style="z-index:120">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-head"><h2 id="bh_title">Ask Claude to write the brief</h2><button class="btn ghost sm" onclick="closeBrief()">✕</button></div>
+    <div class="modal-body">
+      <p class="hint" style="font-size:13.5px;margin:0 0 8px"><b>Step 1.</b> Copy this prompt and paste it into the Claude chat you want to record (Claude Code or Claude.ai):</p>
+      <textarea id="bh_prompt" style="min-height:150px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.45" readonly></textarea>
+      <button class="btn primary sm" style="margin-top:8px" onclick="copyBriefPrompt()"><svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='12' height='12' rx='2'/><path d='M5 15V5a2 2 0 0 1 2-2h10'/></svg> Copy prompt</button>
+      <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
+      <p class="hint" id="bh_step2" style="font-size:13.5px;margin:0 0 8px"><b>Step 2.</b> Paste Claude's reply here, then click Apply — it fills Brief &amp; Accomplished for you:</p>
+      <textarea id="bh_reply" placeholder="Paste Claude's reply…" style="min-height:120px"></textarea>
+    </div>
+    <div class="modal-foot">
+      <div class="grow" style="flex:1"></div>
+      <button class="btn" onclick="closeBrief()">Cancel</button>
+      <button class="btn primary" onclick="applyBriefReply()">Apply to session</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== Command palette ===== -->
+<div class="overlay pal" id="overlayPal" style="z-index:140" onclick="if(event.target.id==='overlayPal')closePalette()">
+  <div class="palette">
+    <input id="palInput" placeholder="Type a session, project, or command…" autocomplete="off" oninput="palSel=0;renderPalette(this.value)">
+    <div id="palList"></div>
+    <div class="pal-foot"><kbd>↑↓</kbd> navigate &nbsp; <kbd>Enter</kbd> open &nbsp; <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== First-run welcome ===== -->
+<div class="overlay" id="overlayWelcome" style="z-index:150">
+  <div class="modal" style="max-width:520px">
+    <div class="starter-banner"><div><h2>Welcome to Relay</h2><p>Never drop the baton between Claude sessions — one board for every chat line, handoff, and project.</p></div></div>
+    <div class="modal-body">
+      <div class="wstep"><span class="wn">1</span><div><b>Every session gets a permanent ID</b><br><span>Hit <i>Start new</i> — you get a serial like <code>CC-0007</code>, a chat name to paste into Claude's sidebar, and a kickoff prompt that teaches Claude its own ID.</span></div></div>
+      <div class="wstep"><span class="wn">2</span><div><b>Claude fills the board for you</b><br><span>Click <i>Sync</i>, copy the prompt into any Claude chat, paste back its reply — your chats appear here with summaries, statuses, and chain links. No retyping.</span></div></div>
+      <div class="wstep"><span class="wn">3</span><div><b>Never lose the thread again</b><br><span>The Board shows your live lines, stale ones, and handoffs nobody picked up. Press <kbd>Ctrl+K</kbd> to jump anywhere.</span></div></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="finishWelcome(true)">Start clean</button>
+      <div class="grow" style="flex:1"></div>
+      <button class="btn primary" onclick="finishWelcome(false)">Explore with demo data</button>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">Relay <span id="vfoot"></span> · your data never leaves this device · <a id="repolink" href="https://github.com/" target="_blank" rel="noopener">GitHub</a><span id="supportwrap" style="display:none"> · <a id="supportlink" href="#" target="_blank" rel="noopener">☕ support this project</a></span></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Relay — single-file local session board
+   Data persists in localStorage. Export/Import = JSON backup.
+   ============================================================ */
+
+const APP_VERSION = "1.5.1";
+const REPO_URL = "https://github.com/jackghazi/relay";
+const SUPPORT_URL = ""; // ← optional: your Gumroad / Ko-fi link; footer shows it only when set
+const STORE_KEY = "sessionTracker.v1";
+const IC = {
+  gauge: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 14l4-4'/><path d='M3.34 19a10 10 0 1 1 17.32 0Z'/></svg>`,
+  cmd: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 9V6a3 3 0 1 0-3 3h3Zm0 0v6m0-6h6m-6 6v3a3 3 0 1 1-3-3h3Zm6-6h3a3 3 0 1 0-3-3v3Zm0 6v3a3 3 0 1 0 3-3h-3Zm0 0H9'/></svg>`,
+  sun: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='4'/><path d='M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/></svg>`,
+  moon: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z'/></svg>`,
+  report: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z'/><path d='M14 2v6h6'/><path d='M8 17v-3m4 3v-5m4 5v-2'/></svg>`,
+  flame: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 22c4.4 0 7-2.9 7-6.6C19 11 15 9.5 15 5c-3 1.5-4 4.5-4 7-1.5-1-2-2.5-2-4-2 1.6-4 4-4 7.4C5 19.1 7.6 22 12 22Z'/></svg>`,
+  clock: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/></svg>`,
+  sync: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a9 9 0 1 1-2.64-6.36'/><path d='M21 3v6h-6'/></svg>`,
+  down: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3v12'/><path d='m7 11 5 5 5-5'/><path d='M5 21h14'/></svg>`,
+  up: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 21V9'/><path d='m7 13 5-5 5 5'/><path d='M5 3h14'/></svg>`,
+  plus: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M5 12h14'/></svg>`,
+  copy: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='12' height='12' rx='2'/><path d='M5 15V5a2 2 0 0 1 2-2h10'/></svg>`,
+  tag: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2H6a2 2 0 0 0-2 2v6l8.6 8.6a2 2 0 0 0 2.8 0l5.2-5.2a2 2 0 0 0 0-2.8L12 2Z'/><circle cx='8.5' cy='8.5' r='1' fill='currentColor'/></svg>`,
+  edit: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'/></svg>`,
+  spark: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2l1.9 5.7L20 9.5l-5.6 2.2L12 17l-2.4-5.3L4 9.5l6.1-1.8Z'/><path d='M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8Z'/></svg>`,
+  bot: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='8' width='16' height='12' rx='3'/><path d='M12 8V4M8 4h8'/><circle cx='9' cy='14' r='1' fill='currentColor'/><circle cx='15' cy='14' r='1' fill='currentColor'/></svg>`,
+  write: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z'/><path d='M14 2v6h6'/><path d='M9 15h6M9 11h2'/></svg>`,
+  inbox: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 12h-6l-2 3h-4l-2-3H2'/><path d='M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6Z'/></svg>`,
+  link2: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 17H7A5 5 0 0 1 7 7h2'/><path d='M15 7h2a5 5 0 1 1 0 10h-2'/><path d='M8 12h8'/></svg>`,
+  note: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 4h16v12l-4 4H4Z'/><path d='M16 20v-4h4'/></svg>`,
+  bulb: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18h6'/><path d='M10 22h4'/><path d='M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2Z'/></svg>`,
+  term: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m5 8 4 4-4 4'/><path d='M12 18h7'/><rect x='2' y='3' width='20' height='18' rx='2'/></svg>`,
+  chat: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-8 8H4l2.4-2.4A8 8 0 1 1 21 12Z'/></svg>`,
+  hands: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M7 11.5 11.5 7a2.1 2.1 0 0 1 3 3L10 14.5'/><path d='m17 12.5-4.5 4.5a2.1 2.1 0 0 1-3-3L14 9.5'/></svg>`,
+  dotc: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/></svg>`,
+  bolt: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M13 2 4 14h6l-1 8 9-12h-6Z'/></svg>`,
+  cal: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M8 3v4M16 3v4M3 11h18'/></svg>`,
+  folder: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5h5l2 3h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'/></svg>`,
+  search2: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>`,
+  radar: `<svg class='ic' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M19.07 4.93A10 10 0 0 0 6.99 3.34'/><path d='M4 6h.01'/><path d='M2.29 9.62a10 10 0 1 0 19.02-1.27'/><path d='M16.24 7.76a6 6 0 1 0-8.01 8.91'/><path d='M12 18h.01'/><path d='M17.99 11.66a6 6 0 0 1-2.22 4.75'/><circle cx='12' cy='12' r='2'/><path d='m13.41 10.59 5.66-5.66'/></svg>`
+};
+
+const COLORS = ["#3b6ef5","#8b5cf6","#ec4899","#ef4444","#f59e0b","#10b981","#06b6d4","#6366f1","#84cc16","#64748b"];
+const SOURCES = ["Claude Code","Claude.ai","Cowork","Other"];
+
+let db = load();
+let state = { view:"board", filterProject:"all", filterSource:"all", chainProject:null, search:"" };
+
+/* ---------- storage ---------- */
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){ const d=JSON.parse(raw); d.meta=d.meta||{}; d.handoffs=d.handoffs||[]; migrate(d); return d; }
+  }catch(e){}
+  const fresh = seed(); migrate(fresh); return fresh;
+}
+// one-time backfill: give every session a permanent seq (per-project, date order)
+// so chain numbers never reshuffle when sessions are added or deleted later.
+function migrate(d){
+  const byProj={};
+  d.sessions.slice().sort((a,b)=> new Date(a.date||0)-new Date(b.date||0)).forEach(s=>{
+    byProj[s.project]=(byProj[s.project]||0)+1;
+    if(s.seq==null) s.seq=byProj[s.project];
+  });
+}
+function save(){
+  db.meta.savedAt = Date.now();
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(db)); }
+  catch(e){ toast("⚠ COULD NOT SAVE — storage is full or blocked. Export a backup NOW."); console.error("Relay save failed:", e); }
+  if(typeof fsScheduleWrite === "function") fsScheduleWrite();
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function seed(){
+  // Demo data: three believable projects so the board, chains, and warnings all have something to show.
+  const p1 = {id:"p_app", name:"Recipe Box App", short:"RecipeBox", color:"#10b981", desc:"Meal-planning PWA heading to the app stores", claudeProject:"recipe box build", status:"active"};
+  const p2 = {id:"p_site", name:"Studio Website", short:"Studio", color:"#6C9BFF", desc:"Portfolio site rebuild with a booking form", claudeProject:"", status:"active"};
+  const p3 = {id:"p_ops", name:"Invoice Bot", short:"InvoiceBot", color:"#ec4899", desc:"Cowork automation that chases overdue invoices", claudeProject:"", status:"paused"};
+  const s1 = {id:"s1", serial:"CAI-0001", seq:1, title:"CAI-0001 · RecipeBox · product plan · #1 · 2026-06-01 · done", project:"p_app", source:"Claude.ai", date:"2026-06-01T10:05", summary:"Planned the MVP: pantry list, 3 screens, offline-first", brief:"Turn the recipe-box idea into a buildable MVP spec", accomplished:"Locked MVP scope and data model; wrote the kickoff prompt for Claude Code.", status:"done", continuedFrom:null, handoffAt:"2026-06-01T12:40", notes:""};
+  const s2 = {id:"s2", serial:"CC-0001", seq:2, title:"CC-0001 · RecipeBox · build sprint 1 · #2 · 2026-06-03 · done", project:"p_app", source:"Claude Code", date:"2026-06-03T09:15", summary:"Built the pantry + recipe screens against the spec", brief:"Execute the MVP spec from CAI-0001", accomplished:"Two of three screens working with local storage; meal-plan screen stubbed.", status:"done", continuedFrom:"s1", handoffAt:"2026-06-03T17:20", notes:""};
+  const s3 = {id:"s3", serial:"CC-0002", seq:3, title:"CC-0002 · RecipeBox · meal plan screen · #3 · 2026-06-08 · active", project:"p_app", source:"Claude Code", date:"2026-06-08T19:40", summary:"Finishing the meal-plan screen and weekly view", brief:"Pick up from HANDOFF_RECIPEBOX.md and finish screen 3", accomplished:"", status:"active", continuedFrom:"s2", handoffAt:"", notes:"Next: wire the grocery-list export"};
+  const s4 = {id:"s4", serial:"CAI-0002", seq:1, title:"CAI-0002 · Studio · design direction · #1 · 2026-05-26 · active", project:"p_site", source:"Claude.ai", date:"2026-05-26T14:30", summary:"Picked a bold editorial look; booking form specced", brief:"Choose a design direction and spec the booking flow", accomplished:"Direction chosen from three mockups; handoff written for the build session.", status:"active", continuedFrom:null, handoffAt:"2026-05-26T16:10", notes:"Waiting on final photography"};
+  const s5 = {id:"s5", serial:"CW-0001", seq:1, title:"CW-0001 · InvoiceBot · overdue chase flow · #1 · 2026-06-05 · done", project:"p_ops", source:"Cowork", date:"2026-06-05T11:00", summary:"Drafted the reminder-email flow with approval gates", brief:"Design the chase sequence: gentle → firm, owner approves each send", accomplished:"Flow approved; paused until the new bank feed is connected.", status:"done", continuedFrom:null, handoffAt:"", notes:""};
+  const h1 = {id:"h1", name:"HANDOFF_RECIPEBOX.md", writtenBy:"s2", usedBy:["s3"], note:"Two screens done; meal-plan screen stubbed with TODOs; data model final."};
+  const h2 = {id:"h2", name:"HANDOFF_STUDIO.md", writtenBy:"s4", usedBy:[], note:"Design direction + booking form spec, ready for a Claude Code build session."};
+  return { meta:{lastProject:"p_app", serials:{code:2, ai:2, cowork:1}}, projects:[p1,p2,p3], sessions:[s1,s2,s3,s4,s5], handoffs:[h1,h2] };
+}
+
+/* ---------- helpers ---------- */
+function projById(id){ return db.projects.find(p=>p.id===id); }
+function sessById(id){ return db.sessions.find(s=>s.id===id); }
+function shortName(p){ return (p.short && p.short.trim()) || p.name.replace(/\s+/g,""); }
+function fmtDate(iso){
+  if(!iso) return "—";
+  const d = new Date(iso);
+  if(isNaN(d)) return iso;
+  return d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}) +
+    " · " + d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+}
+function dayStr(iso){ return iso ? iso.slice(0,10) : new Date().toISOString().slice(0,10); }
+function esc(s){ return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2200); }
+
+// sessions of a project sorted oldest→newest (chain order) using date then insertion
+function projectSessions(pid){
+  return db.sessions.filter(s=>s.project===pid)
+    .slice().sort((a,b)=> new Date(a.date||0) - new Date(b.date||0) || db.sessions.indexOf(a)-db.sessions.indexOf(b));
+}
+// the single newest ACTIVE session in a project = "LATEST / you are here"
+function latestActive(pid){
+  const act = db.sessions.filter(s=>s.project===pid && s.status==="active");
+  if(!act.length) return null;
+  return act.slice().sort((a,b)=> new Date(b.date||0)-new Date(a.date||0))[0].id;
+}
+// next sequence number for a project's session line
+function nextSeq(pid){ return db.sessions.filter(s=>s.project===pid).length + 1; }
+
+/* ---------- top-level render ---------- */
+function render(){
+  renderFilter();
+  // toggle tabs active
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.view===state.view));
+  const c = document.getElementById("content");
+  if(state.view==="board") c.innerHTML = viewBoard();
+  else if(state.view==="projects") c.innerHTML = viewProjects();
+  else if(state.view==="timeline") c.innerHTML = viewTimeline();
+  else if(state.view==="chain") c.innerHTML = viewChain();
+  else if(state.view==="handoffs") c.innerHTML = viewHandoffs();
+}
+
+function renderFilter(){
+  const bar = document.getElementById("filterbar");
+  if(state.view==="chain"||state.view==="board"){ bar.style.display="none"; return; }
+  bar.style.display="flex";
+  if(db.projects.length > 8){
+    // many projects: compact picker instead of a wall of chips
+    const opts = db.projects.slice().sort((a,b)=>a.name.localeCompare(b.name))
+      .map(p=>`<option value="${p.id}" ${state.filterProject===p.id?"selected":""}>${esc(p.name)}</option>`).join("");
+    bar.innerHTML = `<select class="proj-pick" onchange="setFilter(this.value)">
+        <option value="all" ${state.filterProject==="all"?"selected":""}>All projects (${db.projects.length})</option>${opts}</select>
+      ${state.filterSource!=="all"?`<span class="chip active" onclick="setSourceFilter('all')" title="Click to clear">${esc(state.filterSource)} only ✕</span>`:""}
+      ${state.view==="timeline"?`<button class="btn ghost sm" onclick="setAllCollapsed(true)">Collapse all</button>
+      <button class="btn ghost sm" onclick="setAllCollapsed(false)">Expand all</button>`:""}`;
+    return;
+  }
+  let html = `<span class="chip all ${state.filterProject==="all"?"active":""}" onclick="setFilter('all')">All projects</span>`;
+  db.projects.forEach(p=>{
+    html += `<span class="chip ${state.filterProject===p.id?"active":""}" onclick="setFilter('${p.id}')">
+      <span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`;
+  });
+  if(state.filterSource!=="all"){
+    html += `<span class="chip active" onclick="setSourceFilter('all')" title="Click to clear">${esc(state.filterSource)} only ✕</span>`;
+  }
+  if(state.view==="timeline" && db.projects.length>3){
+    html += `<span class="grow" style="flex:1"></span><button class="btn ghost sm" onclick="setAllCollapsed(true)">Collapse all</button><button class="btn ghost sm" onclick="setAllCollapsed(false)">Expand all</button>`;
+  }
+  bar.innerHTML = html;
+}
+function setAllCollapsed(v){
+  db.meta.collapsed = {};
+  if(v) db.projects.forEach(p=>db.meta.collapsed[p.id]=true);
+  save(); render();
+}
+function toggleCollapse(pid){
+  db.meta.collapsed = db.meta.collapsed||{};
+  db.meta.collapsed[pid] = !db.meta.collapsed[pid];
+  save(); render();
+}
+function setFilter(id){ state.filterProject=id; render(); }
+
+/* ---------- Projects view ---------- */
+function projRow(p){
+  const total = db.sessions.filter(s=>s.project===p.id).length;
+  const live = latestActive(p.id);
+  const last = lastDate(p.id);
+  return `<div class="prow" style="--pc:${p.color}" onclick="setFilter('${p.id}');go('timeline')">
+    <span class="pr-bar"></span>
+    <span class="dot" style="background:${p.color};box-shadow:0 0 8px ${p.color}"></span>
+    <span class="pr-name">${esc(p.name)}${p.claudeProject?`<span class="cproj" title="Linked to the Claude Project &quot;${esc(p.claudeProject)}&quot; — run the Sync prompt inside it to capture its chats">⧉ ${esc(p.claudeProject)}</span>`:""}
+      ${p.desc?`<small>${esc(p.desc)}</small>`:""}</span>
+    <span class="pr-meta">${total} session${total!==1?"s":""}${live?` · <b style="color:var(--latest)">● live</b>`:""}</span>
+    <span class="pr-date">${last?fmtDate(new Date(last).toISOString()).split(" · ")[0]:"—"}</span>
+    <span class="status ${p.status}">${p.status}</span>
+    <button class="btn ghost sm" onclick="event.stopPropagation();openProjectModal('${p.id}')">${IC.edit}</button>
+  </div>`;
+}
+function findDupGroups(){
+  const map={};
+  db.projects.forEach(p=>{ const k=p.name.trim().toLowerCase(); (map[k]=map[k]||[]).push(p); });
+  return Object.values(map).filter(g=>g.length>1);
+}
+function tidyProjects(){
+  const groups=findDupGroups();
+  if(!groups.length){ toast("No duplicate projects found"); return; }
+  const total=groups.reduce((n,g)=>n+g.length-1,0);
+  if(!confirm(`Found ${groups.length} duplicated name${groups.length>1?"s":""} (${total} extra project${total>1?"s":""}). Merge each group into one project, moving all sessions over?`)) return;
+  snapshotUndo("merge duplicate projects");
+  groups.forEach(g=>{
+    const keep=g[0];
+    g.slice(1).forEach(d=>{
+      db.sessions.forEach(s=>{ if(s.project===d.id) s.project=keep.id; });
+      if(!keep.desc && d.desc) keep.desc=d.desc;
+      if(!keep.claudeProject && d.claudeProject) keep.claudeProject=d.claudeProject;
+      if(state.filterProject===d.id) state.filterProject=keep.id;
+      db.projects=db.projects.filter(p=>p.id!==d.id);
+    });
+  });
+  // re-seq merged sessions per project so chain numbers make sense again
+  const byProj={};
+  db.sessions.slice().sort((a,b)=>new Date(a.date||0)-new Date(b.date||0)).forEach(s=>{
+    byProj[s.project]=(byProj[s.project]||0)+1; s.seq=byProj[s.project];
+  });
+  save(); render(); toast(`Merged ${total} duplicate project${total>1?"s":""} ✓`);
+}
+function setProjView(v){ db.meta.projView=v; save(); render(); }
+function viewProjects(){
+  if(!db.projects.length) return emptyState(IC.folder,"No projects yet","Projects group your sessions and give each line a color.", "Add a project", "openProjectModal()");
+  const mode = db.meta.projView || (db.projects.length>6 ? "list" : "cards");
+  const dups = findDupGroups();
+  const toolbar = `<div style="display:flex;align-items:center;gap:8px;margin:24px 0 14px">
+    <div class="section-title" style="margin:0">Projects (${db.projects.length})</div>
+    <div class="grow" style="flex:1"></div>
+    ${dups.length?`<button class="btn sm amber" onclick="tidyProjects()">${IC.spark} Merge ${dups.reduce((n,g)=>n+g.length-1,0)} duplicates</button>`:""}
+    ${unserialed().length?`<button class="btn sm" onclick="standardizeNames()" title="Mint permanent IDs + standard names for sessions logged before the ID system. Originals kept as aliases.">${IC.tag} Standardize ${unserialed().length} names</button>`:""}
+    <div class="tabs" style="padding:3px">
+      <button class="tab sm ${mode==="cards"?"active":""}" style="padding:5px 11px;font-size:12px" onclick="setProjView('cards')">Cards</button>
+      <button class="tab sm ${mode==="list"?"active":""}" style="padding:5px 11px;font-size:12px" onclick="setProjView('list')">List</button>
+    </div>
+    <button class="btn primary sm" onclick="openProjectModal()">${IC.plus} Project</button>
+  </div>`;
+  if(mode==="list"){
+    const sorted = db.projects.slice().sort((a,b)=>lastDate(b.id)-lastDate(a.id));
+    const act = sorted.filter(p=>p.status==="active");
+    const rest = sorted.filter(p=>p.status!=="active");
+    let out = toolbar;
+    if(act.length) out += `<div class="prow-section">Active · ${act.length}</div>` + act.map(projRow).join("");
+    if(rest.length) out += `<div class="prow-section" style="margin-top:18px">Paused & done · ${rest.length}</div>` + rest.map(projRow).join("");
+    return out;
+  }
+  return toolbar + viewProjectsCards();
+}
+function viewProjectsCards(){
+  let cards = db.projects.map(p=>{
+    const total = db.sessions.filter(s=>s.project===p.id).length;
+    const latest = latestActive(p.id);
+    return `<div class="pcard ${state.filterProject===p.id?"sel":""}" style="--pc:${p.color}" onclick="setFilter('${p.id}');go('timeline')">
+      <h3><span class="dot" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.color}"></span>${esc(p.name)}</h3>
+      <div class="desc">${esc(p.desc)||"<span style='color:var(--ink-faint)'>No description</span>"}</div>
+      <div class="meta">
+        <span class="status ${p.status}">${p.status}</span>
+        <span>${total} session${total!==1?"s":""}${latest?" · <b style='color:var(--latest)'>● 1 LIVE</b>":""}</span>
+      </div>
+      <button class="btn ghost sm" style="position:absolute;top:12px;right:10px" onclick="event.stopPropagation();openProjectModal('${p.id}')">${IC.edit}</button>
+    </div>`;
+  }).join("");
+  cards += `<div class="pcard" style="border-style:dashed;border-left-color:var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-weight:600;min-height:120px" onclick="openProjectModal()">＋ New project</div>`;
+  return `<div class="grid">${cards}</div>`;
+}
+
+/* ---------- Timeline view ---------- */
+function viewTimeline(){
+  const projs = db.projects.filter(p=> state.filterProject==="all" || p.id===state.filterProject);
+  if(!projs.length) return emptyState(IC.folder,"No project selected","Add a project first.","Add a project","openProjectModal()");
+  let out="";
+  let any=false;
+  // newest project group order: by most-recent session
+  projs.slice().sort((a,b)=> lastDate(b.id)-lastDate(a.id)).forEach(p=>{
+    let sess = projectSessions(p.id).slice().reverse(); // newest at top
+    sess = sess.filter(matchSearch);
+    if(state.filterSource!=="all") sess = sess.filter(s=>s.source===state.filterSource);
+    if(!sess.length) return;
+    any=true;
+    const latest = latestActive(p.id);
+    const folded = !!(db.meta.collapsed && db.meta.collapsed[p.id]) && !state.search;
+    out += `<div class="proj-group">
+      <div class="proj-head" onclick="toggleCollapse('${p.id}')" style="cursor:pointer" title="Click to ${folded?"expand":"collapse"}">
+        <span class="caret ${folded?"closed":""}">▾</span>
+        <span class="dot" style="background:${p.color}"></span>
+        <h2>${esc(p.name)}</h2><span class="count">${sess.length} session${sess.length!==1?"s":""}${folded&&latest?` · <b style="color:var(--latest)">● live</b>`:""}</span>
+        ${p.claudeProject?`<span class="cproj">⧉ ${esc(p.claudeProject)}</span>`:""}
+        <div class="grow" style="flex:1"></div>
+        <button class="btn sm" onclick="event.stopPropagation();openSessionModal(null,'${p.id}')">${IC.plus} Session</button>
+      </div>
+      ${folded?"":`<div class="timeline">${sess.map(s=>sessionCard(s,p,latest)).join("")}</div>`}</div>`;
+  });
+  if(!any) return emptyState(IC.search2,"Nothing matches","No sessions match your search / filter.","Clear search","clearSearch()");
+  return out;
+}
+function lastDate(pid){ const ss=projectSessions(pid); return ss.length? new Date(ss[ss.length-1].date||0).getTime():0; }
+function matchSearch(s){
+  if(!state.search) return true;
+  const q=state.search.toLowerCase();
+  const p=projById(s.project);
+  return (s.title||"").toLowerCase().includes(q) || (s.summary||"").toLowerCase().includes(q) || (p&&p.name.toLowerCase().includes(q));
+}
+function sessionCard(s,p,latestId){
+  const isLatest = s.id===latestId;
+  const prev = s.continuedFrom ? sessById(s.continuedFrom) : null;
+  const wrote = db.handoffs.filter(h=>h.writtenBy===s.id);
+  const used = db.handoffs.filter(h=>(h.usedBy||[]).includes(s.id));
+  let hoff="";
+  if(s.handoffAt) hoff += `<div class="hoff-line written"><span>${IC.hands}</span><span><b>Handoff written</b> — ${fmtDate(s.handoffAt)}</span></div>`;
+  wrote.forEach(h=> hoff += `<div class="hoff-line"><span>${IC.write}</span><span><b>Wrote ${esc(h.name)}</b> — ${esc(h.note)||"handoff captured"}</span></div>`);
+  used.forEach(h=> hoff += `<div class="hoff-line used"><span>${IC.inbox}</span><span><b>Used ${esc(h.name)}</b> — continued from that state</span></div>`);
+  return `<div class="scard ${isLatest?"latest":""}" data-sid="${s.id}" style="--pc:${p.color}">
+    <div class="s-top">
+      <h4>${esc(s.title)}</h4>
+      <span class="date">${fmtDate(s.date)}</span>
+    </div>
+    ${s.summary?`<p class="summary">${esc(s.summary)}</p>`:""}
+    ${s.brief?`<p class="summary" style="margin-top:7px"><b style="color:var(--ink)">Brief:</b> ${esc(s.brief)}</p>`:""}
+    ${s.accomplished?`<p class="summary" style="margin-top:5px;color:var(--ok)"><b>✓ Accomplished:</b> ${esc(s.accomplished)}</p>`:""}
+    <div class="s-tags">
+      ${s.serial?`<span class="serial-plate" onclick="copyText('${esc(s.serial)}');toast('ID ${esc(s.serial)} copied ✓ — search any Claude app for it')" title="Permanent ID — click to copy, then search Claude's sidebar for it">${IC.tag} ${esc(s.serial)}</span>`:""}
+      ${isLatest?`<span class="latest-badge"><span class="pulse"></span>YOU ARE HERE · LATEST</span> <button class="btn sm" style="padding:4px 11px;font-size:11.5px;border-color:rgba(255,176,46,.4);color:var(--latest);background:var(--latest-soft)" onclick="copySessionContext('${s.id}')" title="Copy this session's context to start your next Claude chat">${IC.copy} Start next chat →</button>`:""}
+      <span class="status ${s.status}">${s.status}</span>
+      <span class="src-tag">${sourceIcon(s.source)} ${esc(s.source||"—")}</span>
+    </div>
+    ${prev?`<div class="continued" onclick="jumpTo('${prev.id}')">← continued from: ${esc(prev.title)}</div>`
+      :(s.continuedFrom?`<div class="continued" style="border-color:rgba(255,122,122,.5);color:var(--danger);background:rgba(255,122,122,.08);cursor:default">← continues a session that's no longer on the board</div>`:"")}
+    ${hoff}
+    ${s.notes?`<p class="summary" style="font-style:italic;color:var(--ink-faint);margin-top:9px">${IC.note} ${esc(s.notes)}</p>`:""}
+    <div class="s-actions">
+      <button class="btn ghost sm" onclick="openSessionModal('${s.id}')">${IC.edit} Edit</button>
+      <button class="btn ghost sm" onclick="openSessionModal(null,'${s.project}','${s.id}')">${IC.plus} Continue</button>
+      <button class="btn ghost sm" onclick="copySessionContext('${s.id}')" title="Copy a context summary to paste into your next Claude chat">${IC.copy} Copy context</button>
+      <button class="btn ghost sm" onclick="copySessionName('${s.id}')" title="Copy this exact name, then rename the chat in Claude's sidebar to match">${IC.tag} Copy name</button>
+    </div>
+  </div>`;
+}
+function sourceIcon(s){ return ({"Claude Code":IC.term,"Claude.ai":IC.chat,"Cowork":IC.hands,"Other":IC.dotc})[s]||IC.dotc; }
+
+/* ---------- Chain view ---------- */
+function viewChain(){
+  const pid = state.chainProject || (state.filterProject!=="all"?state.filterProject:(db.projects[0]&&db.projects[0].id));
+  if(!pid) return emptyState(IC.link2,"No project","Add a project to see its session chain.","Add a project","openProjectModal()");
+  state.chainProject = pid;
+  const p = projById(pid);
+  const sess = projectSessions(pid);
+  const latest = latestActive(pid);
+  const picker = `<div class="filterbar" style="margin:0 0 18px">
+    ${db.projects.map(x=>`<span class="chip ${x.id===pid?"active":""}" onclick="state.chainProject='${x.id}';render()"><span class="dot" style="background:${x.color}"></span>${esc(x.name)}</span>`).join("")}
+  </div>`;
+  if(!sess.length) return picker + emptyState(IC.link2,"No sessions yet","This project has no sessions to chain.","Add a session","openSessionModal(null,'"+pid+"')");
+
+  let nodes="";
+  sess.forEach((s,i)=>{
+    const wrote = db.handoffs.filter(h=>h.writtenBy===s.id);
+    const nextS = sess[i+1];
+    // a handoff "bridges" if written by s and used by next
+    let bridgeW="", bridgeU="";
+    wrote.forEach(h=>{
+      bridgeW += `<div class="hoff-written">${esc(h.name)}</div>`;
+      if(nextS && (h.usedBy||[]).includes(nextS.id)) bridgeU += `<div class="hoff-used">used next ▸</div>`;
+    });
+    nodes += `<div class="cnode ${s.id===latest?"latest":""}" style="--pc:${p.color}">
+      <span class="seq">#${i+1}${s.id===latest?" · LATEST":""}</span>
+      <div class="cdate">${fmtDate(s.date)}</div>
+      <h5>${esc(s.title)}</h5>
+      <div class="csum">${esc(s.summary)||""}</div>
+      <div class="cstatus"><span class="status ${s.status}">${s.status}</span></div>
+    </div>`;
+    if(nextS){
+      // truth in arrows (Gemini finding #2): solid = real continued-from link;
+      // dotted = chronological neighbors with no link; warning = link to a missing parent
+      let cls="", lbl="";
+      if(nextS.continuedFrom===s.id){ /* genuine link: solid arrow, default style */ }
+      else if(nextS.continuedFrom && !sessById(nextS.continuedFrom)){
+        cls="broken"; lbl=`<div class="hoff-broken">⚠ parent missing</div>`;
+      } else if(nextS.continuedFrom){
+        const anc = sessById(nextS.continuedFrom);
+        cls="skip"; lbl=`<div class="hoff-skip">↳ from ${anc.serial||("#"+(anc.seq!=null?anc.seq:"?"))}</div>`;
+      } else {
+        cls="nolink"; lbl=`<div class="hoff-skip">no link</div>`;
+      }
+      nodes += `<div class="carrow ${cls}">
+        <div class="hlabel">${bridgeW}${bridgeU}${lbl}</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ${cls?`stroke-dasharray="${cls==="broken"?"2 3":"4 4"}"`:""}><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </div>`;
+    }
+  });
+  return `<div class="section-title">Chain — ${esc(p.name)} (oldest → newest)</div>${picker}
+    <div class="chain-wrap"><div class="chain">${nodes}</div></div>
+    <p style="color:var(--ink-faint);font-size:13px;margin-top:14px">gold tag = handoff written here · green = consumed by the next session · amber node = current latest active session.</p>`;
+}
+
+/* ---------- Handoffs view ---------- */
+function viewHandoffs(){
+  let hs = db.handoffs;
+  if(state.filterProject!=="all"){
+    hs = hs.filter(h=>{ const w=sessById(h.writtenBy); return w && w.project===state.filterProject; });
+  }
+  const head = `<div style="display:flex;align-items:center;margin:6px 0 16px"><div class="section-title" style="margin:0">Handoff documents</div><div class="grow" style="flex:1"></div><button class="btn primary sm" onclick="openHandoffModal()">${IC.plus} Handoff</button></div>`;
+  if(!hs.length) return head + emptyState(IC.write,"No handoffs yet","Track HANDOFF.md files — who wrote them and which sessions used them.","Add a handoff","openHandoffModal()");
+  const cards = hs.map(h=>{
+    const w = sessById(h.writtenBy);
+    const wp = w?projById(w.project):null;
+    const users = (h.usedBy||[]).map(id=>sessById(id)).filter(Boolean);
+    return `<div class="hcard" style="border-left:4px solid ${wp?wp.color:'#ccc'}">
+      <h4>${IC.write} ${esc(h.name)} <button class="btn ghost sm" style="margin-left:auto" onclick="openHandoffModal('${h.id}')">${IC.edit}</button></h4>
+      <div class="hflow">
+        <span class="pill from">${IC.write} ${w?esc(w.title):"(unknown)"}</span>
+        <span class="arrow">→</span>
+        ${users.length?users.map(u=>`<span class="pill to">${IC.inbox} ${esc(u.title)}</span>`).join('<span class="arrow">·</span>'):'<span style="color:var(--ink-faint)">not used yet</span>'}
+      </div>
+      ${h.note?`<div class="note">${esc(h.note)}</div>`:""}
+    </div>`;
+  }).join("");
+  return head + cards;
+}
+
+/* ---------- empty state ---------- */
+function emptyState(icon,title,desc,btn,action){
+  return `<div class="empty"><div class="big">${icon}</div><h3>${title}</h3><p>${desc}</p><button class="btn primary" onclick="${action}">${btn}</button></div>`;
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+let modalCtx = null; // {type, id}
+
+function openModal(title){ document.getElementById("mTitle").textContent=title; document.getElementById("overlay").classList.add("show"); }
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); modalCtx=null; }
+document.getElementById("overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeModal(); });
+document.getElementById("overlay2").addEventListener("click",e=>{ if(e.target.id==="overlay2") closeBrief(); });
+document.getElementById("overlay3").addEventListener("click",e=>{ if(e.target.id==="overlay3") closeStarter(); });
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape") return;
+  if(document.getElementById("overlay3").classList.contains("show")) closeStarter();
+  else if(document.getElementById("overlay2").classList.contains("show")) closeBrief();
+  else closeModal();
+});
+
+/* ----- Brief Assistant: write a prompt for Claude, paste its reply back ----- */
+let briefMode = "session"; // "session" | "handoff"
+
+function openBriefHelper(){
+  briefMode = "session";
+  const proj = projById(document.getElementById("f_project").value);
+  const title = document.getElementById("f_title").value;
+  const summary = document.getElementById("f_summary").value;
+  const prevId = document.getElementById("f_cf").value;
+  const prev = prevId ? sessById(prevId) : null;
+  document.getElementById("bh_title").textContent = "Ask Claude to write the brief";
+  document.getElementById("bh_step2").innerHTML = "<b>Step 2.</b> Paste Claude's reply here, then click Apply — it fills Brief & Accomplished for you:";
+  document.getElementById("bh_prompt").value = buildBriefPrompt({
+    projName: proj ? proj.name : "",
+    title, summary, prev: prev ? prev.title : ""
+  });
+  document.getElementById("bh_reply").value = "";
+  document.getElementById("overlay2").classList.add("show");
+}
+function openHandoffHelper(){
+  briefMode = "handoff";
+  const name = document.getElementById("f_name").value || "this handoff";
+  const w = sessById(document.getElementById("f_writtenBy").value);
+  const p = w ? projById(w.project) : null;
+  document.getElementById("bh_title").textContent = "Ask Claude to write the handoff note";
+  document.getElementById("bh_step2").innerHTML = "<b>Step 2.</b> Paste Claude's reply here, then click Apply — it fills the handoff note:";
+  document.getElementById("bh_prompt").value = buildHandoffPrompt({ name, session: w ? w.title : "", projName: p ? p.name : "" });
+  document.getElementById("bh_reply").value = "";
+  document.getElementById("overlay2").classList.add("show");
+}
+function buildHandoffPrompt(c){
+  return `You're helping me document a handoff file between two work sessions. Based on THIS conversation, write a short note describing the state this handoff captures - what got done, what's still open, and what the next session needs to know to continue.
+
+Handoff file: ${c.name}
+Written by session: ${c.session || "(this session)"}${c.projName ? `\nProject: ${c.projName}` : ""}
+
+Reply with ONE short paragraph (2-3 sentences). No preamble, no markdown, no labels.`;
+}
+function buildBriefPrompt(c){
+  return `You're helping me keep a log of our work. Based on THIS conversation we've been having, write a short record I can paste into my session tracker.
+
+Project: ${c.projName || "(unspecified)"}
+Session: ${c.title || "(new session)"}${c.prev ? `\nContinued from: ${c.prev}` : ""}${c.summary ? `\nMy note: ${c.summary}` : ""}
+
+Reply in EXACTLY this format and nothing else (no preamble, no markdown):
+
+NAME: <a short 2-5 word label for this session, lowercase, e.g. "lead form wiring" or "auth bug fix">
+BRIEF: <1-2 sentences - what this chat set out to do>
+ACCOMPLISHED: <1-3 sentences - what we actually got done and the current state>
+HANDOFF: <1 sentence - what the next session should pick up, or "none">`;
+}
+// robust clipboard copy that also works on file:// (execCommand fallback)
+function copyText(str){
+  let ok=false;
+  try{
+    const ta=document.createElement("textarea");
+    ta.value=str; ta.style.position="fixed"; ta.style.top="-1000px"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0,999999);
+    ok=document.execCommand("copy"); ta.remove();
+  }catch(e){}
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(str).then(()=>{},()=>{}); }
+  return ok;
+}
+function copyBriefPrompt(){
+  const ok = copyText(document.getElementById("bh_prompt").value);
+  toast(ok ? "Prompt copied ✓ — paste it into Claude" : "Select the text above and copy it");
+}
+// build a clean context block from a session to kick off the NEXT Claude chat
+function copySessionContext(id){
+  const s = sessById(id); if(!s) return;
+  const p = projById(s.project);
+  const writes = db.handoffs.filter(h=>h.writtenBy===id);
+  let t = `Continuing from my last Claude session — here's the context to pick up from.\n\n`;
+  if(s.serial) t += `Previous session ID: ${s.serial}\n`;
+  t += `Project: ${p?p.name:"(none)"}${p&&p.desc?` — ${p.desc}`:""}\n`;
+  t += `Last session: ${s.title}\n`;
+  t += `When: ${fmtDate(s.date)}\n`;
+  if(s.summary) t += `Summary: ${s.summary}\n`;
+  if(s.brief) t += `Brief: ${s.brief}\n`;
+  if(s.accomplished) t += `Accomplished: ${s.accomplished}\n`;
+  if(s.notes) t += `Notes / next: ${s.notes}\n`;
+  writes.forEach(h=> t += `Handoff written: ${h.name}${h.note?` — ${h.note}`:""}\n`);
+  t += `\nPlease continue from where this left off.${s.serial?` Reference ${s.serial} as the session this continues from in any summary or handoff you write.`:""}`;
+  const ok = copyText(t);
+  toast(ok ? "Context copied ✓ — paste into a new Claude chat" : "Copy failed — try again");
+}
+// copy the exact tracker name so the real Claude chat can be renamed to match
+function copySessionName(id){
+  const s = sessById(id); if(!s) return;
+  copyText(s.title);
+  toast("Name copied ✓ — now rename the chat in Claude's sidebar to this");
+}
+function applyBriefReply(){
+  let r = document.getElementById("bh_reply").value;
+  if(!r.trim()){ toast("Paste Claude's reply first"); return; }
+  r = r.replace(/\*\*/g,""); // strip markdown bold
+  if(briefMode==="handoff"){
+    document.getElementById("f_note").value = r.trim();
+    closeBrief(); toast("Handoff note added ✓ — review, then Save"); return;
+  }
+  r = r.replace(/^[\s>*-]+/gm, m=> /^[\s>]+$/.test(m)?m:""); // strip list markers
+  const grab = label => {
+    const m = r.match(new RegExp(label + "\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*[A-Z]{4,}\\s*:|$)","i"));
+    return m ? m[1].trim() : "";
+  };
+  const name = grab("NAME"), brief = grab("BRIEF"), acc = grab("ACCOMPLISHED"), ho = grab("HANDOFF");
+  if(brief) document.getElementById("f_brief").value = brief;
+  if(acc) document.getElementById("f_accomplished").value = acc;
+  if(ho && !/^none\.?$/i.test(ho)){
+    const n = document.getElementById("f_notes");
+    n.value = (n.value ? n.value + "\n" : "") + "Next: " + ho;
+  }
+  if(!brief && !acc && !name){ document.getElementById("f_brief").value = r.trim(); } // unstructured → drop into Brief
+  // NEVER force-rename: a name only auto-applies if the title is still empty.
+  // Otherwise the suggestion appears under the title — you click "use this" if you want it.
+  const topic = name || topicFromText(brief) || topicFromText(acc);
+  closeBrief();
+  const curTitle = document.getElementById("f_title").value.trim();
+  if(topic && !curTitle){
+    suggestName(topic);
+    toast("Brief applied + name set ✓ — review, then Save");
+  } else if(topic){
+    pendingTopic = topic;          // remember Claude's topic for the "use this" link
+    refreshNamePreview();
+    toast("Brief applied ✓ — your name kept (suggestion shown below it)");
+  } else {
+    toast("Brief added ✓ — review, then Save");
+  }
+}
+let pendingTopic = "";
+function closeBrief(){ document.getElementById("overlay2").classList.remove("show"); }
+
+/* ============================================================
+   NEW-SESSION STARTER — pick flavor → serial → describe → prompt
+   ============================================================ */
+const FLAVORS = {
+  code:   { label:"Claude Code session",  prefix:"CC",  source:"Claude Code" },
+  ai:     { label:"Claude session",       prefix:"CAI", source:"Claude.ai" },
+  cowork: { label:"Claude Cowork session",prefix:"CW",  source:"Cowork" },
+  other:  { label:"Session",              prefix:"S",   source:"Other" }
+};
+let starterFlavor = "code";
+function serialFor(flavorKey, commit){
+  db.meta.serials = db.meta.serials || {};
+  const next = (db.meta.serials[flavorKey] || 0) + 1;
+  if(commit){ db.meta.serials[flavorKey] = next; }
+  return FLAVORS[flavorKey].prefix + "-" + String(next).padStart(4,"0");
+}
+function selectFlavor(key){
+  starterFlavor = key;
+  document.querySelectorAll("#overlay3 .flavor").forEach(el=>el.classList.toggle("sel", el.dataset.flavor===key));
+  starterRefreshSerial();
+}
+function openStarter(){
+  const opts = `<option value="__new__">➕ New project…</option>` +
+    db.projects.map(p=>`<option value="${p.id}" ${db.meta.lastProject===p.id?"selected":""}>${esc(p.name)}</option>`).join("");
+  document.getElementById("st_project").innerHTML = opts;
+  if(!db.projects.length) document.getElementById("st_project").value = "__new__";
+  document.getElementById("st_desc").value = "";
+  document.getElementById("st_newproject").value = "";
+  document.getElementById("st_result").style.display = "none";
+  starterToggleNewProject();
+  selectFlavor(starterFlavor);   // applies tile highlight + serial preview
+  document.getElementById("overlay3").classList.add("show");
+}
+function closeStarter(){ document.getElementById("overlay3").classList.remove("show"); }
+function starterRefreshSerial(){
+  document.getElementById("st_serial").textContent = serialFor(starterFlavor, false);
+}
+function starterToggleNewProject(){
+  const isNew = document.getElementById("st_project").value === "__new__";
+  document.getElementById("st_newprojectWrap").style.display = isNew ? "block" : "none";
+}
+function buildFlavorPrompt(key, c){
+  const head = `${FLAVORS[key].label} — ${c.serial}\nProject: ${c.project}\n\nWhat this is about:\n${c.description}\n\nIMPORTANT — session tracking: this session's permanent ID is ${c.serial}. Remember it. Put "${c.serial}" at the top of every handoff, summary, or wrap-up you write in this session. If I ever ask "what session is this?" or "what's our ID?", answer with ${c.serial} and the project name.\n`;
+  let body;
+  if(key==="code"){
+    body = `\nPlease:\n1. Restate your understanding of the goal and ask any blocking questions.\n2. Explore the relevant files before changing anything, then propose a short plan.\n3. Work in small, verifiable steps — tell me what you changed, why, and how you checked it.\n4. Keep everything local: don't push, deploy, or share anything externally.`;
+  } else if(key==="ai"){
+    body = `\nPlease:\n1. Restate the goal in your own words and ask anything you need to do this well.\n2. Help me think it through, then produce the actual deliverable I need.\n3. Keep it clear, structured, and easy to act on.`;
+  } else {
+    body = `\nPlease:\n1. Restate the goal and tell me which connected tools or skills you'll use.\n2. Before anything that sends a message, changes a file, or is hard to undo, show me and wait for my OK.\n3. Work through it step by step, checking in at key decisions.`;
+  }
+  const tail = `\n\nWhen we wrap up, end your reply with this exact block so I can log it in my tracker:\n\nID: ${c.serial}\nNAME: <2-5 word label>\nBRIEF: <what this session set out to do>\nACCOMPLISHED: <what got done + current state>\nHANDOFF: <what the next session should pick up, or "none">`;
+  return head + body + tail;
+}
+function starterCreate(){
+  const flavorKey = starterFlavor;
+  const desc = document.getElementById("st_desc").value.trim();
+  if(!desc){ toast("Tell me what it's about first"); return; }
+  // resolve project (existing or new)
+  let pid = document.getElementById("st_project").value;
+  if(pid === "__new__"){
+    const nm = document.getElementById("st_newproject").value.trim();
+    if(!nm){ toast("Name the new project"); return; }
+    pid = uid();
+    db.projects.push({ id:pid, name:nm, short:nm.replace(/\s+/g,"").slice(0,12), color:COLORS[db.projects.length % COLORS.length], desc:"", status:"active" });
+  }
+  const p = projById(pid);
+  const serial = serialFor(flavorKey, true);            // commit the counter
+  const date = nowLocal();
+  const topic = topicFromText(desc) || "kickoff";
+  const seq = db.sessions.filter(x=>x.project===pid).length + 1;
+  const title = `${serial} · ${shortName(p)} · ${topic} · #${seq} · ${date.slice(0,10)} · active`;
+  db.sessions.push({
+    id:uid(), serial, seq, title, project:pid, source:FLAVORS[flavorKey].source, date,
+    summary:(desc.split(/[.\n]/)[0]||"").slice(0,90), brief:desc, accomplished:"",
+    status:"active", continuedFrom:null, handoffAt:"", notes:""
+  });
+  db.meta.lastProject = pid;
+  save();
+  const prompt = buildFlavorPrompt(flavorKey, { serial, project:p.name, description:desc });
+  document.getElementById("st_name").value = title;
+  document.getElementById("st_prompt").value = prompt;
+  document.getElementById("st_result").style.display = "block";
+  copyText(title);   // Step 1 first: the chat name is already on the clipboard
+  render();
+  toast("Session " + serial + " created — name copied ✓ (rename your chat, then copy the prompt)");
+}
+
+/* ----- Project modal ----- */
+function openProjectModal(id){
+  const p = id? projById(id) : {name:"",short:"",color:COLORS[db.projects.length%COLORS.length],desc:"",status:"active"};
+  modalCtx={type:"project",id:id||null,color:p.color};
+  document.getElementById("mDelete").style.display = id?"inline-flex":"none";
+  document.getElementById("mBody").innerHTML = `
+    <div class="field"><label>Project name</label><input id="f_name" value="${esc(p.name)}" placeholder="e.g. Recipe Box App"></div>
+    <div class="field"><label>Short name <span style="font-weight:400;color:var(--ink-faint)">(used in auto-naming, e.g. RecipeBox)</span></label><input id="f_short" value="${esc(p.short||"")}" placeholder="RecipeBox"></div>
+    <div class="field"><label>Short description</label><input id="f_desc" value="${esc(p.desc||"")}" placeholder="What is this project?"></div>
+    <div class="field"><label>Claude Project <span style="font-weight:400;color:var(--ink-faint)">(optional — the matching Project folder in claude.ai)</span></label><input id="f_cproj" value="${esc(p.claudeProject||"")}" placeholder="e.g. recipe box build">
+      <div class="hint">Chats inside a Claude Project are invisible to a Sync run from a normal chat — run the Sync prompt <b>inside</b> that Project to pull its sessions in.</div></div>
+    <div class="row2">
+      <div class="field"><label>Status</label><select id="f_status">${["active","paused","done"].map(s=>`<option ${p.status===s?"selected":""}>${s}</option>`).join("")}</select></div>
+      <div class="field"><label>Color</label><div class="swatches" id="f_swatches">${COLORS.map(c=>`<span class="swatch ${c===p.color?"sel":""}" style="background:${c}" onclick="pickColor('${c}')"></span>`).join("")}</div></div>
+    </div>`;
+  openModal(id?"Edit project":"New project");
+}
+function pickColor(c){ modalCtx.color=c; document.querySelectorAll("#f_swatches .swatch").forEach(s=>s.classList.toggle("sel", s.style.background===hexToRgb(c)||rgbEq(s.style.background,c))); }
+function rgbEq(a,c){ return a.replace(/\s/g,"")===hexToRgb(c).replace(/\s/g,"") ; }
+function hexToRgb(h){ const n=parseInt(h.slice(1),16); return `rgb(${(n>>16)&255}, ${(n>>8)&255}, ${n&255})`; }
+
+/* ----- Session modal ----- */
+function openSessionModal(id, presetProject, continueFromId){
+  const editing = !!id;
+  let s;
+  if(editing){ s = sessById(id); }
+  else {
+    const pid = presetProject || db.meta.lastProject || (state.filterProject!=="all"?state.filterProject:(db.projects[0]&&db.projects[0].id));
+    s = {title:"",project:pid,source:"Claude Code",date:nowLocal(),summary:"",brief:"",accomplished:"",status:"active",continuedFrom:continueFromId||null,handoffAt:"",notes:""};
+  }
+  if(!s.project && !db.projects.length){ toast("Add a project first"); openProjectModal(); return; }
+  pendingTopic = "";
+  modalCtx={type:"session",id:id||null};
+  document.getElementById("mDelete").style.display = editing?"inline-flex":"none";
+  const projOpts = db.projects.map(p=>`<option value="${p.id}" ${s.project===p.id?"selected":""}>${esc(p.name)}</option>`).join("");
+  const srcOpts = SOURCES.map(x=>`<option ${s.source===x?"selected":""}>${x}</option>`).join("");
+  // continued-from options: other sessions in same project
+  const cfOpts = `<option value="">— none (start of a new line) —</option>` +
+    db.sessions.filter(x=>x.id!==id).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0))
+      .map(x=>`<option value="${x.id}" ${s.continuedFrom===x.id?"selected":""}>${esc(x.title)}</option>`).join("");
+  document.getElementById("mBody").innerHTML = `
+    <div class="field"><label>Title ${editing&&s.serial?`<span class="serial-plate" style="margin-left:6px">${IC.tag} ${esc(s.serial)} — permanent</span>`:""}</label>
+      <div class="auto-name"><input id="f_title" oninput="refreshNamePreview()" value="${esc(s.title)}" placeholder="Session title">
+      <button class="btn sm" type="button" onclick="suggestName()" title="Auto-suggest standardized name">${IC.spark} Suggest</button></div>
+      <div class="hint">Format: [ID] · [Project] · [topic] · #[seq] · [date] · [status] — the ID and #seq are permanent and never change.</div>
+      <div id="f_namePreview" class="hint" style="display:none;margin-top:6px;font-size:12.5px"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Project</label><select id="f_project" onchange="onProjChange()">${projOpts}</select></div>
+      <div class="field"><label>Source</label><select id="f_source" onchange="refreshNamePreview()">${srcOpts}</select></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Date / time</label><input id="f_date" type="datetime-local" onchange="refreshNamePreview()" value="${esc(s.date||nowLocal())}"></div>
+      <div class="field"><label>Status</label><select id="f_status" onchange="refreshNamePreview()">${["active","done","abandoned"].map(x=>`<option ${s.status===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    </div>
+    <div class="field"><label>One-line summary</label><input id="f_summary" oninput="refreshNamePreview()" value="${esc(s.summary)}" placeholder="What was this session about?"></div>
+    <div class="field"><label>Chat brief <span style="font-weight:400;color:var(--ink-faint)">(what this chat set out to do)</span> <button class="btn ghost sm" type="button" style="padding:2px 8px;font-size:11px" onclick="openBriefHelper()">${IC.bot} Ask Claude to write it</button></label><textarea id="f_brief" placeholder="The plan / goal going in…">${esc(s.brief||"")}</textarea></div>
+    <div class="field"><label>What was accomplished</label><textarea id="f_accomplished" placeholder="What got done in this chat…">${esc(s.accomplished||"")}</textarea></div>
+    <div class="row2">
+      <div class="field"><label>Continued from <span style="font-weight:400;color:var(--ink-faint)">(previous in line)</span></label><select id="f_cf">${cfOpts}</select></div>
+      <div class="field"><label>Handoff written at <button class="btn ghost sm" type="button" style="padding:2px 7px;font-size:11px" onclick="document.getElementById('f_handoffAt').value=nowLocal()">now</button></label><input id="f_handoffAt" type="datetime-local" value="${esc(s.handoffAt||"")}"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="f_notes" placeholder="Anything to remember…">${esc(s.notes||"")}</textarea></div>`;
+  openModal(editing?"Edit session":"New session");
+  if(!editing) suggestName(); // auto-generate the standardized name for a fresh session
+  else refreshNamePreview();  // show a "use this" suggestion if the title drifts from the standard
+}
+function onProjChange(){ refreshNamePreview(); }
+// pure: build the standardized name from the current form (no side effects)
+// CRITICAL: preserves the session's permanent serial (CC-0007) and stored #seq —
+// these NEVER change once assigned, so suggested names stay stable forever.
+function computeName(topicOverride){
+  const pid = document.getElementById("f_project").value;
+  const p = projById(pid); if(!p) return "";
+  const status = document.getElementById("f_status").value;
+  const date = (document.getElementById("f_date").value||nowLocal()).slice(0,10);
+  // topic priority: explicit override (e.g. from a pasted brief) → existing typed topic → summary → "topic"
+  let topic = "";
+  if(topicOverride){ topic = String(topicOverride).replace(/^["'\s]+|["'\s]+$/g,"").slice(0,42).trim(); }
+  if(!topic){
+    let cur = document.getElementById("f_title").value.trim();
+    if(cur && cur.includes("·")){
+      // topic is the segment after the serial (if any) and short-name
+      const parts = cur.split("·").map(x=>x.trim());
+      const skip = /^[A-Z]{1,4}-\d{3,5}$/.test(parts[0]) ? 2 : 1;
+      topic = parts[skip]||"";
+    }
+  }
+  if(!topic) topic = (document.getElementById("f_summary").value.trim().split(/[.\n]/)[0]||"").slice(0,28).trim();
+  if(!topic) topic = "topic";
+  // permanent identity: existing session keeps its stored serial + seq;
+  // a brand-new session previews the next serial for its source (not committed until Save)
+  const existing = modalCtx && modalCtx.id ? sessById(modalCtx.id) : null;
+  const serial = existing && existing.serial ? existing.serial
+    : (!existing ? serialFor(flavorForSource(document.getElementById("f_source").value), false) : "");
+  const seq = existing && existing.seq!=null ? existing.seq
+    : db.sessions.filter(x=>x.project===pid && x.id!==(modalCtx&&modalCtx.id)).length + 1;
+  return `${serial?serial+" · ":""}${shortName(p)} · ${topic} · #${seq} · ${date} · ${status}`;
+}
+// map a session's Source field to its serial flavor
+function flavorForSource(src){
+  return ({"Claude Code":"code","Claude.ai":"ai","Cowork":"cowork"})[src] || "other";
+}
+function suggestName(topicOverride){
+  const name = computeName(topicOverride);
+  if(name) document.getElementById("f_title").value = name;
+  refreshNamePreview();
+  if(!topicOverride) toast("Name suggested — edit if you like");
+}
+// live preview line shown under the title field
+function refreshNamePreview(){
+  const el = document.getElementById("f_namePreview"); if(!el) return;
+  const name = computeName(pendingTopic||undefined);
+  const cur = (document.getElementById("f_title").value||"").trim();
+  if(name && name!==cur){
+    el.style.display = "block";
+    el.innerHTML = `${IC.bulb} Suggested: <b style="color:var(--ink)">${esc(name)}</b> &nbsp;<a href="#" onclick="event.preventDefault();suggestName(pendingTopic||undefined);pendingTopic=''" style="color:var(--accent);font-weight:700">use this</a>`;
+  } else {
+    el.style.display = "none";
+  }
+}
+// fallback: diagnose a short topic label from free-text (used when Claude gives no NAME)
+function topicFromText(text){
+  if(!text) return "";
+  const stop = new Set("a an the to of for and or in on at by with into from this that we our my i you it is are was were be been will would should could can our your their as so just about over under again very get got make made set up out add wire build fix create update help me us".split(/\s+/));
+  let s = (text.split(/[.!?\n]/)[0]||"").toLowerCase().replace(/[^a-z0-9\s-]/g," ");
+  let words = s.split(/\s+/).filter(w=>w && !stop.has(w));
+  return words.slice(0,4).join(" ");
+}
+function nowLocal(){
+  // local datetime string for datetime-local input (no seconds)
+  const d=new Date(), z=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+
+/* ----- Handoff modal ----- */
+function openHandoffModal(id){
+  const editing=!!id;
+  const h = editing? db.handoffs.find(x=>x.id===id) : {name:"",writtenBy:(db.sessions[0]&&db.sessions[0].id)||"",usedBy:[],note:""};
+  if(!db.sessions.length){ toast("Add a session first"); return; }
+  modalCtx={type:"handoff",id:id||null};
+  document.getElementById("mDelete").style.display = editing?"inline-flex":"none";
+  const sOpts = db.sessions.map(s=>`<option value="${s.id}" ${h.writtenBy===s.id?"selected":""}>${esc(s.title)}</option>`).join("");
+  const usedList = db.sessions.map(s=>`<label class="ms-item"><input type="checkbox" value="${s.id}" ${(h.usedBy||[]).includes(s.id)?"checked":""}> ${esc(s.title)}</label>`).join("");
+  document.getElementById("mBody").innerHTML = `
+    <div class="field"><label>Handoff file name</label><input id="f_name" value="${esc(h.name)}" placeholder="HANDOFF_PROJECT.md"></div>
+    <div class="field"><label>Written by (session)</label><select id="f_writtenBy">${sOpts}</select></div>
+    <div class="field"><label>Used by (sessions that consumed it)</label><div class="multiselect" id="f_usedBy">${usedList}</div></div>
+    <div class="field"><label>What state did it capture? <button class="btn ghost sm" type="button" style="padding:2px 8px;font-size:11px" onclick="openHandoffHelper()">${IC.bot} Ask Claude to write it</button></label><textarea id="f_note" placeholder="Short note on the context this handoff carried…">${esc(h.note||"")}</textarea></div>`;
+  openModal(editing?"Edit handoff":"New handoff");
+}
+
+/* ============================================================
+   SYNC FROM CLAUDE — paste an update block, the tracker fills itself.
+   Claude (which can search your chat history) generates the block;
+   merge is non-destructive: matches by serial ID first, then title.
+   ============================================================ */
+const SYNC_PROMPT = `Search my recent Claude chats and build an update for my Relay session board.
+
+Reply with ONLY a JSON code block (no other text) in exactly this schema:
+
+{
+  "syncVersion": 1,
+  "projects": [ { "name": "...", "desc": "one line on what this project is", "claudeProject": "name of the Claude Project folder these chats live in, or omit" } ],
+  "sessions": [
+    {
+      "title": "the chat's name (keep any ID like CC-0007 if the name has one)",
+      "project": "which project it belongs to (must match a name above)",
+      "source": "Claude.ai" | "Claude Code" | "Cowork" | "Other",
+      "date": "YYYY-MM-DDTHH:MM",
+      "summary": "one line: what this chat was about",
+      "accomplished": "1-2 sentences: what actually got done / where it ended",
+      "status": "active" | "done",
+      "continuedFromTitle": "title of the chat it continued from, or omit",
+      "serial": "its ID like CC-0007 if the chat has one, or omit"
+    }
+  ]
+}
+
+Cover every distinct work chat from the period I named (or the last 14 days if I didn't). Group related chats under the same project. Mark a session "active" if the work seems unfinished. One entry per chat line.
+
+IMPORTANT SCOPE NOTE: if we are inside a Claude Project right now, you can only see THIS Project's chats — set "claudeProject" to this Project's name on the entries. If we are in a normal chat, you can only see chats OUTSIDE Projects — remind me at the end to also run this prompt inside each of my Claude Projects to capture those.`;
+
+
+const SYNC_SCHEMA = `{
+  "syncVersion": 1,
+  "projects": [ { "name": "...", "desc": "one line on what this project is", "claudeProject": "name of the Claude Project folder these chats live in, or omit" } ],
+  "sessions": [
+    {
+      "title": "the session's name (keep any ID like CC-0007 if the name has one)",
+      "project": "which project it belongs to (must match a name above)",
+      "source": "Claude.ai" | "Claude Code" | "Cowork" | "Other",
+      "date": "YYYY-MM-DDTHH:MM",
+      "summary": "one line: what this session was about",
+      "accomplished": "1-2 sentences: what actually got done / where it ended",
+      "status": "active" | "done",
+      "continuedFromTitle": "title of the session it continued from, or omit",
+      "serial": "its ID like CC-0007 if it has one, or omit",\n      "externalId": "a stable machine id for this session if one exists (e.g. the transcript filename), or omit"
+    }
+  ]
+}`;
+
+const SYNC_PROMPT_CODE = `I use a local session board called Relay. Help me bulk-import my Claude Code session history on this machine.
+
+Claude Code keeps session transcripts on disk under ~/.claude/projects/ (one folder per working directory, with one .jsonl transcript file per session). READ-ONLY task — do not modify, move, or delete anything:
+
+1. List the folders under ~/.claude/projects/ and the .jsonl session files in each, with their modified dates.
+2. For the 15 most recent sessions (or the range I name), read just enough of each transcript — roughly the first and last 60 lines — to tell what the session was about and how it ended. Do not read entire large files.
+3. Use each folder's project/repo name as the "project". Set "source" to "Claude Code". Use the file's modified time as "date". Mark "active" if the session clearly ended mid-task.
+4. Reply with ONLY a JSON code block in exactly this schema — or, if I ask, save it to a file named relay-sync.json in the current folder instead:
+
+` + SYNC_SCHEMA + `
+
+If a transcript already shows a session ID like CC-0012 (from my kickoff prompts), keep it in "serial" and in the title.`;
+
+const SYNC_PROMPT_COWORK = `I use a local session board called Relay to track my work across Claude surfaces.
+
+If you are able to see my recent Cowork tasks or their history, summarize each distinct task from the period I name (default: last 14 days) and reply with ONLY a JSON code block in exactly this schema — set "source" to "Cowork", and group related tasks under one project:
+
+` + SYNC_SCHEMA + `
+
+You may either paste the block in chat or save it as a file named relay-sync.json so I can import it directly. If you cannot access past tasks, say so plainly — and instead, from now on, end every Cowork task by giving me this block so I can log it in one paste:
+
+ID: <leave blank unless I gave you one>
+NAME: <2-5 word label>
+BRIEF: <what this task set out to do>
+ACCOMPLISHED: <what got done + current state>
+HANDOFF: <what a next session should pick up, or "none">`;
+
+function openSyncModal(){
+  modalCtx = {type:"sync"};
+  document.getElementById("mDelete").style.display="none";
+  document.getElementById("mBody").innerHTML = `
+    <p class="hint" style="font-size:13.5px;margin:0 0 10px"><b>Step 1.</b> Pick where the sessions live, copy that prompt, and give it to Claude there:</p>
+    <div class="tabs" style="margin-bottom:10px" id="syncTabs">
+      <button class="tab active" data-sf="ai" onclick="pickSyncSurface('ai')">Claude.ai chats</button>
+      <button class="tab" data-sf="code" onclick="pickSyncSurface('code')">Claude Code</button>
+      <button class="tab" data-sf="cowork" onclick="pickSyncSurface('cowork')">Cowork</button>
+    </div>
+    <p class="hint" id="syncHint" style="margin:0 0 8px"></p>
+    <textarea id="f_syncPrompt" readonly style="min-height:120px;font-family:var(--mono);font-size:11.5px;line-height:1.4"></textarea>
+    <button class="btn primary sm" style="margin-top:8px" onclick="(copyText(document.getElementById('f_syncPrompt').value), toast('Sync prompt copied ✓'))">${IC.copy} Copy sync prompt</button>
+    <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+    <p class="hint" style="font-size:13.5px;margin:0 0 8px"><b>Step 2.</b> Paste the JSON reply here and hit Save — new sessions are added, known ones are updated. Works the same for every surface, and never duplicates.</p>
+    <textarea id="f_syncIn" placeholder='Paste the JSON block from Claude…' style="min-height:140px;font-family:var(--mono);font-size:11.5px"></textarea>
+    <div style="margin-top:9px;display:flex;align-items:center;gap:10px">
+      <input type="file" id="f_syncFile" accept=".json,application/json" style="display:none" onchange="syncFromFile(event)">
+      <button class="btn sm" onclick="document.getElementById('f_syncFile').click()">${IC.up} Import sync file…</button>
+      <span class="hint" style="margin:0">…or ask Claude to <b>save the block as relay-sync.json</b> and import it here — no copy-paste.</span>
+    </div>`;
+  openModal("Sync from Claude");
+  pickSyncSurface("ai");
+}
+async function syncFromFile(ev){
+  const f = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if(!f) return;
+  try{
+    const txt = await f.text();
+    const r = mergeSync(txt);
+    closeModal(); render();
+    toast(`Synced from ${f.name} ✓ — ${r.addedS} new, ${r.updatedS} updated, ${r.addedP} new project${r.addedP!==1?"s":""}`);
+  }catch(e){ alert(e.message || "That file isn't a valid sync block."); }
+}
+function pickSyncSurface(k){
+  document.querySelectorAll("#syncTabs .tab").forEach(t=>t.classList.toggle("active", t.dataset.sf===k));
+  const map = {
+    ai:     {p:SYNC_PROMPT, h:`Run in any normal chat for loose chats. <b>Chats inside Claude Projects are scoped</b> — run this same prompt inside each Project too; the merge stitches it all together.`},
+    code:   {p:SYNC_PROMPT_CODE, h:`Run <b>inside a Claude Code session</b>. Code reads its own transcript files under <span style="font-family:var(--mono)">~/.claude/projects/</span> (read-only) and bulk-imports your session history.`},
+    cowork: {p:SYNC_PROMPT_COWORK, h:`Run in a Cowork task. If Cowork can't see its own history, it switches to wrap-up mode: every task ends with a block you paste into Relay.`}
+  };
+  document.getElementById("f_syncPrompt").value = map[k].p;
+  document.getElementById("syncHint").innerHTML = map[k].h;
+}
+function normDate(v){
+  if(!v) return nowLocal();
+  const t = new Date(v);
+  if(isNaN(t)) return nowLocal();
+  const l = new Date(t.getTime() - t.getTimezoneOffset()*60000);
+  return l.toISOString().slice(0,16);
+}
+function mergeSync(raw){
+  // tolerate a ```json fenced block or stray text around the JSON
+  let txt = String(raw).trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
+  const a = txt.indexOf("{"), b = txt.lastIndexOf("}");
+  if(a>=0 && b>a) txt = txt.slice(a, b+1);
+  let data;
+  try{ data = JSON.parse(txt); }catch(e){ throw new Error("That isn't valid JSON — copy Claude's whole code block and try again."); }
+  if(!Array.isArray(data.sessions)) throw new Error("No \"sessions\" list found in the block.");
+  snapshotUndo("sync merge");
+
+  let addedP=0, addedS=0, updatedS=0;
+  const projByName = n => db.projects.find(p=>p.name.trim().toLowerCase()===String(n||"").trim().toLowerCase());
+
+  (data.projects||[]).forEach(ip=>{
+    if(!ip || !ip.name) return;
+    let p = projByName(ip.name);
+    if(!p){
+      p = {id:uid(), name:String(ip.name).trim(), short:String(ip.name).replace(/\s+/g,"").slice(0,12),
+           color:COLORS[db.projects.length % COLORS.length], desc:String(ip.desc||"").slice(0,140),
+           claudeProject:String(ip.claudeProject||"").slice(0,80), status:"active"};
+      db.projects.push(p); addedP++;
+    } else if(ip.desc && !p.desc){ p.desc = String(ip.desc).slice(0,140); }
+    if(p && ip.claudeProject && !p.claudeProject) p.claudeProject = String(ip.claudeProject).slice(0,80);
+  });
+
+  const findSession = is => {
+    if(is.externalId){ const m = db.sessions.find(s=>s.externalId===is.externalId); if(m) return m; }
+    if(is.serial){ const m = db.sessions.find(s=>s.serial===is.serial); if(m) return m; }
+    const t = String(is.title||"").trim().toLowerCase();
+    if(!t) return null;
+    // same title can be two different sessions (Gemini finding #3):
+    // only treat as the same session if the dates agree within 72h.
+    const cands = db.sessions.filter(s=>(s.title||"").trim().toLowerCase()===t || (s.aka||"").trim().toLowerCase()===t);
+    if(!cands.length) return null;
+    if(!is.date) return cands[0];
+    const dt = new Date(normDate(is.date)).getTime();
+    return cands.find(s=>Math.abs(new Date(s.date||0).getTime() - dt) <= 72*3600*1000) || null;
+  };
+  const pendingCF = []; // resolve continued-from links after all inserts
+
+  data.sessions.forEach(is=>{
+    if(!is || !is.title) return;
+    // sanitize: serials must look like serials; externalId must be a short token
+    if(is.serial && !/^[A-Za-z]{1,4}-\d{3,5}$/.test(String(is.serial).trim())) delete is.serial;
+    if(is.serial) is.serial = String(is.serial).trim().toUpperCase();
+    if(is.externalId) is.externalId = String(is.externalId).replace(/[^\w.\-]/g,"").slice(0,80) || undefined;
+    // ensure the project exists even if it wasn't listed under "projects"
+    let p = projByName(is.project) || (!is.project && projByName("Unsorted"));
+    if(!p){
+      p = {id:uid(), name:is.project?String(is.project).trim():"Unsorted",
+           short:(is.project?String(is.project):"Unsorted").replace(/\s+/g,"").slice(0,12),
+           color:COLORS[db.projects.length % COLORS.length], desc:"", status:"active"};
+      db.projects.push(p); addedP++;
+    }
+    const src = SOURCES.includes(is.source) ? is.source : "Claude.ai";
+    const st  = ["active","done","abandoned"].includes(is.status) ? is.status : "active";
+    let s = findSession(is);
+    if(s){
+      // update, never blank out: incoming non-empty fields win
+      if(is.summary) s.summary = String(is.summary).slice(0,200);
+      if(is.accomplished) s.accomplished = String(is.accomplished).slice(0,500);
+      if(is.status) s.status = st;
+      if(is.serial && !s.serial) s.serial = is.serial;
+      if(is.externalId && !s.externalId) s.externalId = is.externalId;
+      if(!s.project) s.project = p.id;
+      updatedS++;
+    } else {
+      s = {id:uid(), title:String(is.title).slice(0,160), project:p.id, source:src,
+           date:normDate(is.date), summary:String(is.summary||"").slice(0,200), brief:"",
+           accomplished:String(is.accomplished||"").slice(0,500), status:st,
+           continuedFrom:null, handoffAt:"", notes:"",
+           serial:is.serial||null, externalId:is.externalId||null, seq: db.sessions.filter(x=>x.project===p.id).length + 1};
+      db.sessions.push(s); addedS++;
+    }
+    if(is.continuedFromTitle) pendingCF.push({sid:s.id, fromTitle:String(is.continuedFromTitle).trim().toLowerCase()});
+  });
+
+  pendingCF.forEach(x=>{
+    const from = db.sessions.find(s=>(s.title||"").trim().toLowerCase()===x.fromTitle)
+              || db.sessions.find(s=>(s.aka||"").trim().toLowerCase()===x.fromTitle);
+    const me = sessById(x.sid);
+    if(from && me && from.id!==me.id && !me.continuedFrom) me.continuedFrom = from.id;
+  });
+
+  save();
+  return {addedP, addedS, updatedS};
+}
+
+/* ----- Save / Delete dispatch ----- */
+function onSave(){
+  if(!modalCtx) return;
+  if(modalCtx.type==="sync"){
+    const raw = document.getElementById("f_syncIn").value;
+    if(!raw.trim()){ toast("Paste Claude's JSON block first"); return; }
+    try{
+      const r = mergeSync(raw);
+      closeModal(); render();
+      toast(`Synced ✓ — ${r.addedS} new session${r.addedS!==1?"s":""}, ${r.updatedS} updated, ${r.addedP} new project${r.addedP!==1?"s":""}`);
+    }catch(e){ alert(e.message||"Sync failed — check the pasted block."); }
+    return;
+  }
+  if(modalCtx.type==="project"){
+    const name=document.getElementById("f_name").value.trim();
+    if(!name){ toast("Name is required"); return; }
+    const data={name, short:document.getElementById("f_short").value.trim(), desc:document.getElementById("f_desc").value.trim(), claudeProject:document.getElementById("f_cproj").value.trim(), status:document.getElementById("f_status").value, color:modalCtx.color};
+    if(modalCtx.id){ Object.assign(projById(modalCtx.id),data); }
+    else { db.projects.push({id:uid(),...data}); }
+  }
+  else if(modalCtx.type==="session"){
+    const title=document.getElementById("f_title").value.trim();
+    if(!title){ toast("Title is required"); return; }
+    const data={
+      title, project:document.getElementById("f_project").value, source:document.getElementById("f_source").value,
+      date:document.getElementById("f_date").value, summary:document.getElementById("f_summary").value.trim(),
+      brief:document.getElementById("f_brief").value.trim(), accomplished:document.getElementById("f_accomplished").value.trim(),
+      status:document.getElementById("f_status").value, continuedFrom:document.getElementById("f_cf").value||null,
+      handoffAt:document.getElementById("f_handoffAt").value||"", notes:document.getElementById("f_notes").value.trim()
+    };
+    db.meta.lastProject = data.project; // remember for the next quick "new session"
+    if(modalCtx.id){ Object.assign(sessById(modalCtx.id),data); } // serial & seq untouched — permanent
+    else {
+      // permanent identity, assigned exactly once:
+      data.serial = serialFor(flavorForSource(data.source), true);
+      data.seq = db.sessions.filter(x=>x.project===data.project).length + 1;
+      db.sessions.push({id:uid(),...data});
+    }
+  }
+  else if(modalCtx.type==="handoff"){
+    const name=document.getElementById("f_name").value.trim();
+    if(!name){ toast("File name is required"); return; }
+    const usedBy=[...document.querySelectorAll("#f_usedBy input:checked")].map(c=>c.value);
+    const data={name, writtenBy:document.getElementById("f_writtenBy").value, usedBy, note:document.getElementById("f_note").value.trim()};
+    if(modalCtx.id){ Object.assign(db.handoffs.find(x=>x.id===modalCtx.id),data); }
+    else { db.handoffs.push({id:uid(),...data}); }
+  }
+  save(); closeModal(); render(); toast("Saved ✓");
+}
+function onDelete(){
+  snapshotUndo("delete");
+  if(!modalCtx||!modalCtx.id) return;
+  const t=modalCtx.type;
+  if(t==="project"){
+    const n=db.sessions.filter(s=>s.project===modalCtx.id).length;
+    if(!confirm(`Delete this project${n?` and its ${n} session(s)`:""}? This cannot be undone.`)) return;
+    db.sessions=db.sessions.filter(s=>s.project!==modalCtx.id);
+    db.projects=db.projects.filter(p=>p.id!==modalCtx.id);
+    if(state.filterProject===modalCtx.id) state.filterProject="all";
+  }
+  else if(t==="session"){
+    if(!confirm("Delete this session?")) return;
+    // splice children to the deleted session's own parent so lineage survives (Gemini finding #2)
+    const victim = sessById(modalCtx.id);
+    const graft = victim && victim.continuedFrom && sessById(victim.continuedFrom) ? victim.continuedFrom : null;
+    db.sessions.forEach(s=>{ if(s.continuedFrom===modalCtx.id) s.continuedFrom = graft; });
+    db.handoffs.forEach(h=>{ if(h.writtenBy===modalCtx.id) h.writtenBy=""; h.usedBy=(h.usedBy||[]).filter(x=>x!==modalCtx.id); });
+    db.sessions=db.sessions.filter(s=>s.id!==modalCtx.id);
+  }
+  else if(t==="handoff"){
+    if(!confirm("Delete this handoff?")) return;
+    db.handoffs=db.handoffs.filter(h=>h.id!==modalCtx.id);
+  }
+  save(); closeModal(); render(); toast("Deleted");
+}
+
+
+/* ============================================================
+   MISSION CONTROL BOARD
+   ============================================================ */
+function daysAgo(iso){ if(!iso) return Infinity; return (Date.now()-new Date(iso).getTime())/86400000; }
+const DEMO_IDS = new Set(["p_app","p_site","p_ops","p_mm","p_pc","s1","s2","s3","s4","s5","h1","h2"]);
+function hasDemoData(){ return db.projects.some(p=>DEMO_IDS.has(p.id)) || db.sessions.some(s=>DEMO_IDS.has(s.id)); }
+function removeDemoData(){
+  if(!confirm("Remove the built-in demo projects and sessions? Your own data is untouched.")) return;
+  snapshotUndo("remove demo data");
+  db.projects = db.projects.filter(p=>!DEMO_IDS.has(p.id));
+  db.sessions = db.sessions.filter(s=>!DEMO_IDS.has(s.id) && !DEMO_IDS.has(s.project));
+  db.handoffs = db.handoffs.filter(h=>!DEMO_IDS.has(h.id));
+  if(DEMO_IDS.has(state.filterProject)) state.filterProject="all";
+  save(); render(); toast("Demo data removed ✓ — the board is all yours");
+}
+function viewBoard(){
+  const actProj = db.projects.filter(p=>p.status==="active");
+  const actSess = db.sessions.filter(s=>s.status==="active");
+  const week = db.sessions.filter(s=>daysAgo(s.date)<=7).length;
+  const pickups = db.handoffs.filter(h=>!(h.usedBy||[]).length);
+  const stale = actSess.filter(s=>daysAgo(s.date)>7).sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+  const sinceBackup = db.meta.lastExport? Math.floor(daysAgo(db.meta.lastExport)) : null;
+
+  const tiles = `
+    <div class="stat-grid">
+      <div class="stat"><div class="sv">${actProj.length}</div><div class="sl">active projects</div></div>
+      <div class="stat"><div class="sv" style="color:var(--latest)">${actSess.length}</div><div class="sl">live session lines</div></div>
+      <div class="stat"><div class="sv">${week}</div><div class="sl">sessions · last 7 days</div></div>
+      <div class="stat ${pickups.length?"warn":""}"><div class="sv">${pickups.length}</div><div class="sl">handoffs awaiting pickup</div></div>
+      <div class="stat ${sinceBackup!=null&&sinceBackup>=7?"warn":""}"><div class="sv">${sinceBackup==null?"—":sinceBackup+"d"}</div><div class="sl">since last backup</div></div>
+    </div>`;
+
+  // 14-day sparkline
+  const days=[...Array(14)].map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(13-i)); return d.toISOString().slice(0,10); });
+  const counts=days.map(day=>db.sessions.filter(s=>(s.date||"").slice(0,10)===day).length);
+  const max=Math.max(1,...counts);
+  const bars=counts.map((c,i)=>{ const h=Math.max(2,Math.round(c/max*38));
+    return `<rect x="${i*22}" y="${42-h}" width="14" height="${h}" rx="3" fill="${c?(i===13?"var(--latest)":"var(--accent)"):"var(--line)"}" opacity="${c?1:.6}"><title>${days[i]}: ${c} session${c!==1?"s":""}</title></rect>`; }).join("");
+  const spark = `<div class="panel-card"><div class="pc-head">${IC.gauge} Activity · last 14 days <span class="grow"></span><button class="btn ghost sm" onclick="copyStatusReport()">${IC.report} Copy status report</button></div>
+    <svg viewBox="0 0 ${14*22-8} 44" style="width:100%;max-width:420px;height:52px;display:block">${bars}</svg></div>`;
+
+  // jump back in — latest active per project
+  let jump="";
+  actProj.forEach(p=>{
+    const id=latestActive(p.id); if(!id) return;
+    const s=sessById(id);
+    jump += `<div class="jump" style="--pc:${p.color}">
+      <div class="j-top"><span class="dot" style="background:${p.color};box-shadow:0 0 8px ${p.color}"></span><b>${esc(p.name)}</b>
+        ${s.serial?`<span class="serial-plate" onclick="copyText('${esc(s.serial)}');toast('ID ${esc(s.serial)} copied ✓')">${IC.tag} ${esc(s.serial)}</span>`:""}
+        <span class="grow"></span><span class="cdate">${fmtDate(s.date)}</span></div>
+      <div class="j-title" onclick="jumpTo('${s.id}')">${esc(s.title)}</div>
+      ${s.notes?`<div class="j-note">${IC.note} ${esc(s.notes)}</div>`:""}
+      <div class="s-actions"><button class="btn sm" onclick="copySessionContext('${s.id}')">${IC.copy} Start next chat →</button>
+        <button class="btn ghost sm" onclick="jumpTo('${s.id}')">Open in timeline</button></div>
+    </div>`;
+  });
+  const jumpBlock = jump? `<div class="panel-card"><div class="pc-head">${IC.bolt} Jump back in — your live lines</div><div class="jump-grid">${jump}</div></div>` : "";
+
+  // attention: stale + pickups
+  let attn="";
+  stale.slice(0,5).forEach(s=>{ const p=projById(s.project);
+    attn += `<div class="attn"><span style="color:var(--latest)">${IC.clock}</span><span><b>${esc(s.title)}</b> has been quiet for <b>${Math.floor(daysAgo(s.date))} days</b> and is still marked active.</span><button class="btn ghost sm" onclick="jumpTo('${s.id}')">View</button></div>`; });
+  pickups.slice(0,5).forEach(h=>{ const w=sessById(h.writtenBy);
+    attn += `<div class="attn"><span style="color:var(--hoff)">${IC.write}</span><span><b>${esc(h.name)}</b> was written${w?` by ${esc(w.title)}`:""} but no session has picked it up yet.</span><button class="btn ghost sm" onclick="go('handoffs')">View</button></div>`; });
+  const attnBlock = attn? `<div class="panel-card"><div class="pc-head">${IC.flame} Needs your attention</div>${attn}</div>`
+    : `<div class="panel-card"><div class="pc-head">${IC.flame} Needs your attention</div><div class="attn" style="border:none"><span style="color:var(--ok)">${IC.spark}</span><span>All clear — no stale lines, no orphaned handoffs. Nice board.</span></div></div>`;
+
+  const demoBar = hasDemoData()? `<div class="demo-bar">${IC.spark} Demo data is mixed into this board.<button class="btn sm" onclick="removeDemoData()">Remove demo data</button></div>` : "";
+  return demoBar + tiles + spark + jumpBlock + attnBlock;
+}
+
+/* ---------- Status report (Markdown, for sharing or pasting to Claude) ---------- */
+function copyStatusReport(){
+  const today = new Date().toISOString().slice(0,10);
+  let md = `# Session board — ${today}\n`;
+  db.projects.forEach(p=>{
+    const ss = projectSessions(p.id); if(!ss.length) return;
+    const latest = sessById(latestActive(p.id)) || ss[ss.length-1];
+    md += `\n## ${p.name} (${p.status})\n`;
+    if(p.desc) md += `${p.desc}\n`;
+    md += `- Sessions: ${ss.length} · latest: **${latest.title}** (${(latest.date||"").slice(0,10)})\n`;
+    if(latest.summary) md += `- Now: ${latest.summary}\n`;
+    if(latest.accomplished) md += `- Last accomplished: ${latest.accomplished}\n`;
+    if(latest.notes) md += `- Next: ${latest.notes}\n`;
+    const open = db.handoffs.filter(h=>{ const w=sessById(h.writtenBy); return w&&w.project===p.id&&!(h.usedBy||[]).length; });
+    open.forEach(h=> md += `- ⚠ Handoff not yet picked up: ${h.name}\n`);
+  });
+  copyText(md);
+  toast("Status report copied ✓ — paste it anywhere");
+}
+
+/* ---------- Theme ---------- */
+function applyTheme(){
+  const t = db.meta.theme || "dark";
+  document.documentElement.setAttribute("data-theme", t);
+  const b = document.getElementById("themeBtn");
+  if(b) b.innerHTML = t==="dark" ? IC.sun : IC.moon;
+}
+function toggleTheme(){
+  db.meta.theme = (db.meta.theme||"dark")==="dark" ? "light" : "dark";
+  save(); applyTheme();
+}
+
+/* ---------- Command palette (Ctrl+K) ---------- */
+let palItems=[], palSel=0;
+function palActions(){
+  return [
+    {t:"action", label:"New session", hint:"N", run:()=>openSessionModal()},
+    {t:"action", label:"Start new Claude session (with ID + prompt)", hint:"", run:()=>openStarter()},
+    {t:"action", label:"New project", hint:"", run:()=>openProjectModal()},
+    {t:"action", label:"New handoff", hint:"", run:()=>openHandoffModal()},
+    {t:"action", label:"Sync from Claude", hint:"S", run:()=>openSyncModal()},
+    {t:"action", label:"Copy status report", hint:"", run:()=>copyStatusReport()},
+    {t:"action", label:"Standardize names (retro IDs)", hint:"", run:()=>standardizeNames()},
+    {t:"action", label:"Undo last change", hint:"Ctrl+Z", run:()=>undoLast()},
+    {t:"action", label:"Export backup", hint:"E", run:()=>doExport()},
+    {t:"action", label:"Toggle light / dark", hint:"", run:()=>toggleTheme()},
+    {t:"action", label:"Go to Board", hint:"1", run:()=>go("board")},
+    {t:"action", label:"Go to Projects", hint:"2", run:()=>go("projects")},
+    {t:"action", label:"Go to Timeline", hint:"3", run:()=>go("timeline")},
+    {t:"action", label:"Go to Chain", hint:"4", run:()=>go("chain")},
+    {t:"action", label:"Go to Handoffs", hint:"5", run:()=>go("handoffs")},
+  ];
+}
+function fuzzy(q, s){
+  q=q.toLowerCase(); s=s.toLowerCase();
+  let qi=0, score=0, streak=0;
+  for(let i=0;i<s.length&&qi<q.length;i++){
+    if(s[i]===q[qi]){ qi++; streak++; score+=streak + (i===0||/\W/.test(s[i-1])?4:0); }
+    else streak=0;
+  }
+  return qi===q.length ? score : -1;
+}
+function openPalette(){
+  document.getElementById("overlayPal").classList.add("show");
+  const inp=document.getElementById("palInput");
+  inp.value=""; palSel=0; renderPalette(""); inp.focus();
+}
+function closePalette(){ document.getElementById("overlayPal").classList.remove("show"); const i=document.getElementById("palInput"); if(i) i.blur(); }
+function renderPalette(q){
+  let items=[];
+  palActions().forEach(a=>items.push({...a, key:a.label}));
+  db.sessions.forEach(s=>{ const p=projById(s.project);
+    items.push({t:"session", label:s.title, sub:(p?p.name:"")+(s.serial?" · "+s.serial:""), key:s.title+" "+(s.serial||"")+" "+(p?p.name:""), run:()=>jumpTo(s.id)}); });
+  db.projects.forEach(p=>items.push({t:"project", label:p.name, sub:"project", key:p.name, dot:p.color, run:()=>{setFilter(p.id);go("timeline");}}));
+  if(q){ items=items.map(it=>({...it, sc:fuzzy(q,it.key)})).filter(it=>it.sc>=0).sort((a,b)=>b.sc-a.sc); }
+  items=items.slice(0,9);
+  palItems=items; if(palSel>=items.length) palSel=Math.max(0,items.length-1);
+  const ic={action:IC.bolt, session:IC.term, project:IC.folder};
+  document.getElementById("palList").innerHTML = items.length? items.map((it,i)=>`
+    <div class="pal-item ${i===palSel?"sel":""}" onmouseenter="palSel=${i};renderPalette(document.getElementById('palInput').value)" onclick="palRun(${i})">
+      <span class="pi-ic">${it.dot?`<span class="dot" style="background:${it.dot};width:10px;height:10px;border-radius:50%;display:inline-block"></span>`:ic[it.t]}</span>
+      <span class="pi-label">${esc(it.label)}${it.sub?`<small>${esc(it.sub)}</small>`:""}</span>
+      ${it.hint?`<kbd>${it.hint}</kbd>`:""}
+    </div>`).join("") : `<div class="pal-item" style="color:var(--ink-faint)">No matches</div>`;
+}
+function palRun(i){ const it=palItems[i]; if(!it) return; closePalette(); it.run(); }
+
+/* ---------- Keyboard shortcuts ---------- */
+function typingInField(){
+  const el=document.activeElement;
+  return el && (el.tagName==="INPUT"||el.tagName==="TEXTAREA"||el.tagName==="SELECT"||el.isContentEditable);
+}
+document.addEventListener("keydown", e=>{
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="k"){ e.preventDefault(); openPalette(); return; }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="z" && !typingInField() && !document.querySelector(".overlay.show")){ e.preventDefault(); undoLast(); return; }
+  const palOpen=document.getElementById("overlayPal").classList.contains("show");
+  if(palOpen){
+    if(e.key==="Escape"){ closePalette(); }
+    else if(e.key==="ArrowDown"){ e.preventDefault(); palSel=Math.min(palSel+1,palItems.length-1); renderPalette(document.getElementById("palInput").value); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); palSel=Math.max(palSel-1,0); renderPalette(document.getElementById("palInput").value); }
+    else if(e.key==="Enter"){ e.preventDefault(); palRun(palSel); }
+    return;
+  }
+  if(typingInField()) return;
+  if(document.querySelector(".overlay.show")) return;
+  const k=e.key.toLowerCase();
+  if(k==="n") openSessionModal();
+  else if(k==="s") openSyncModal();
+  else if(k==="e") doExport();
+  else if(k==="/" ){ e.preventDefault(); document.getElementById("search").focus(); }
+  else if(k==="1") go("board");
+  else if(k==="2") go("projects");
+  else if(k==="3") go("timeline");
+  else if(k==="4") go("chain");
+  else if(k==="5") go("handoffs");
+  else if(k==="?") toast("Shortcuts: Ctrl+K palette · N session · S sync · E export · / search · 1-5 views");
+});
+
+/* ---------- First-run welcome ---------- */
+function maybeWelcome(){
+  if(db.meta.welcomed) return;
+  document.getElementById("overlayWelcome").classList.add("show");
+}
+function finishWelcome(clean){
+  if(clean){ db.projects=[]; db.sessions=[]; db.handoffs=[]; }
+  db.meta.welcomed = true; save();
+  document.getElementById("overlayWelcome").classList.remove("show");
+  render();
+  toast(clean? "Clean board — hit Start new to log your first session" : "Demo data loaded — poke around, then Sync your real chats");
+}
+
+
+/* ============================================================
+   DATA FILE — write-through persistence via the File System
+   Access API (Chrome/Edge). Survives cache clears; put the file
+   in OneDrive/Dropbox for free multi-machine sync.
+   ============================================================ */
+const FS_SUPPORTED = typeof window.showSaveFilePicker === "function" && typeof window.showOpenFilePicker === "function";
+let fileHandle = null;
+let fsStatus = FS_SUPPORTED ? "off" : "unsupported"; // off | connected | needs-permission | unsupported
+const idb = {
+  _open(){ return new Promise((res,rej)=>{
+    if(!window.indexedDB) return rej(new Error("no idb"));
+    const r = indexedDB.open("relay-fs", 1);
+    r.onupgradeneeded = ()=> r.result.createObjectStore("kv");
+    r.onsuccess = ()=> res(r.result);
+    r.onerror  = ()=> rej(r.error);
+  }); },
+  async set(k,v){ try{ const d=await this._open(); await new Promise((res,rej)=>{ const tx=d.transaction("kv","readwrite"); tx.objectStore("kv").put(v,k); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }catch(e){} },
+  async get(k){ try{ const d=await this._open(); return await new Promise(res=>{ const rq=d.transaction("kv","readonly").objectStore("kv").get(k); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }catch(e){ return null; } },
+  async del(k){ try{ const d=await this._open(); await new Promise(res=>{ const tx=d.transaction("kv","readwrite"); tx.objectStore("kv").delete(k); tx.oncomplete=res; tx.onerror=res; }); }catch(e){} }
+};
+function fsButtonRefresh(){
+  const b = document.getElementById("fsBtn"); if(!b) return;
+  if(!FS_SUPPORTED){ b.style.display="none"; return; }
+  b.style.display="";
+  if(fsStatus==="connected"){ b.innerHTML = IC.down.replace("ic'","ic'") + " File ✓"; b.classList.add("amber"); b.title="Data file connected — every save writes to it. Click to manage."; b.innerHTML = "💾 File ✓"; }
+  else if(fsStatus==="needs-permission"){ b.innerHTML = "💾 Reconnect"; b.classList.add("amber"); b.title="Your data file needs one click to reconnect this session."; }
+  else { b.innerHTML = "💾 Data file"; b.classList.remove("amber"); b.title="Save Relay's data to a real file — survives cache clears, syncs between PCs via OneDrive/Dropbox."; }
+}
+let fsTimer = null;
+function fsScheduleWrite(){
+  if(fsStatus!=="connected" || !fileHandle) return;
+  clearTimeout(fsTimer); fsTimer = setTimeout(fsWriteNow, 500);
+}
+async function fsWriteNow(){
+  if(!fileHandle) return;
+  try{
+    const w = await fileHandle.createWritable();
+    await w.write(JSON.stringify(db, null, 1));
+    await w.close();
+  }catch(e){
+    console.error("Relay data-file write failed:", e);
+    fsStatus="needs-permission"; fsButtonRefresh();
+    toast("⚠ Couldn't write the data file — click 💾 Reconnect");
+  }
+}
+async function fsAdoptFileData(text){
+  try{
+    const data = JSON.parse(text);
+    if(!data || !Array.isArray(data.sessions) || !Array.isArray(data.projects)) return false;
+    data.meta = data.meta||{}; data.handoffs = data.handoffs||[];
+    migrate(data);
+    snapshotUndo("load data from file");
+    db = data;
+    localStorage.setItem(STORE_KEY, JSON.stringify(db));
+    applyTheme(); render();
+    return true;
+  }catch(e){ return false; }
+}
+async function fsConnect(mode){
+  try{
+    if(mode==="open"){
+      const [h] = await showOpenFilePicker({types:[{description:"Relay data file",accept:{"application/json":[".json"]}}]});
+      fileHandle = h;
+      const txt = await (await h.getFile()).text();
+      let adopted = false;
+      if(txt.trim()){
+        if(confirm("Load the data FROM this file onto this device?\n\nOK = use the file's data here.\nCancel = keep this device's data and overwrite the file with it.")){
+          adopted = await fsAdoptFileData(txt);
+          if(!adopted) alert("That file isn't valid Relay data — keeping this device's data.");
+        }
+      }
+    } else {
+      fileHandle = await showSaveFilePicker({suggestedName:"relay-data.json", types:[{description:"Relay data file",accept:{"application/json":[".json"]}}]});
+    }
+    await idb.set("handle", fileHandle);
+    fsStatus = "connected"; fsButtonRefresh();
+    await fsWriteNow();
+    closeModal();
+    toast("Data file connected ✓ — every save now writes to it");
+  }catch(e){ if(e && e.name!=="AbortError") console.error(e); }
+}
+async function fsDisconnect(){
+  fileHandle = null; fsStatus = "off";
+  await idb.del("handle");
+  fsButtonRefresh(); closeModal();
+  toast("Data file disconnected — back to browser-only storage");
+}
+async function fsReconnect(){
+  if(!fileHandle){ openDataFileModal(); return; }
+  try{
+    const perm = await fileHandle.requestPermission({mode:"readwrite"});
+    if(perm!=="granted"){ toast("Permission not granted"); return; }
+    const txt = await (await fileHandle.getFile()).text();
+    try{
+      const data = JSON.parse(txt);
+      if(data && data.meta && data.meta.savedAt && (!db.meta.savedAt || data.meta.savedAt > db.meta.savedAt)){
+        await fsAdoptFileData(txt);
+        toast("Data file reconnected ✓ — loaded newer data from the file");
+      } else { toast("Data file reconnected ✓"); }
+    }catch(e){ toast("Data file reconnected ✓"); }
+    fsStatus = "connected"; fsButtonRefresh(); fsScheduleWrite();
+  }catch(e){ console.error(e); toast("Couldn't reconnect — open 💾 and re-pick the file"); }
+}
+async function fsBoot(){
+  if(!FS_SUPPORTED){ fsButtonRefresh(); return; }
+  fileHandle = await idb.get("handle");
+  if(!fileHandle){ fsStatus="off"; fsButtonRefresh(); return; }
+  try{
+    const q = await fileHandle.queryPermission({mode:"readwrite"});
+    if(q==="granted"){
+      fsStatus="connected";
+      const txt = await (await fileHandle.getFile()).text();
+      try{
+        const data = JSON.parse(txt);
+        if(data && data.meta && data.meta.savedAt && (!db.meta.savedAt || data.meta.savedAt > db.meta.savedAt)){
+          await fsAdoptFileData(txt);
+          toast("Loaded newer data from your data file ✓");
+        }
+      }catch(e){}
+    } else {
+      fsStatus="needs-permission";
+    }
+  }catch(e){ fsStatus="needs-permission"; }
+  fsButtonRefresh();
+}
+function openDataFileModal(){
+  if(fsStatus==="needs-permission" && fileHandle){ fsReconnect(); return; }
+  modalCtx = {type:"info"};
+  document.getElementById("mDelete").style.display="none";
+  document.getElementById("mBody").innerHTML = `
+    <p class="hint" style="font-size:13.5px;line-height:1.6;margin:0 0 12px">Right now your board lives only in this browser's storage — clear the cache, lose the board (backups aside). <b>Connect a data file</b> and every save also writes to a real <span style="font-family:var(--mono)">relay-data.json</span> on your disk.</p>
+    <div class="wstep"><span class="wn">★</span><div><b>Pro move:</b> put the file inside your OneDrive / Dropbox / Google Drive folder — open Relay on another PC, connect the same file, and you've got multi-machine sync with no server and no account.</div></div>
+    <p class="hint" style="margin:8px 0 0">Heads-up: the browser asks you to re-approve the file once per session (one click on <b>💾 Reconnect</b>). Chrome & Edge only.</p>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn primary" onclick="fsConnect('new')">Create new data file</button>
+      <button class="btn" onclick="fsConnect('open')">Connect existing file</button>
+      ${fsStatus==="connected"?`<button class="btn danger" onclick="fsDisconnect()">Disconnect</button>`:""}
+    </div>`;
+  openModal("Data file");
+}
+
+
+/* ============================================================
+   SURFACE HUB — click a surface name in the header to see where
+   its files live, how many sessions Relay has from it, its sync
+   prompt, and a one-click source filter.
+   ============================================================ */
+const SURFACES = {
+  code: {
+    source:"Claude Code", label:"Claude Code", ic:()=>IC.term, syncKey:"code",
+    blurb:"Your coding sessions in the terminal or desktop app. Every session leaves a transcript file on this PC — which is why Relay can bulk-import your whole Code history.",
+    where:[
+      ["Session transcripts","~/.claude/projects/ — on Windows: C:\\Users\\<you>\\.claude\\projects\\"],
+      ["Layout","one folder per working directory · one .jsonl file per session"],
+      ["How Relay reads them","run the Code sync prompt inside any Code session (read-only)"]
+    ]},
+  ai: {
+    source:"Claude.ai", label:"Claude.ai", ic:()=>IC.chat, syncKey:"ai",
+    blurb:"Your chats in the Claude app and claude.ai. They live in your Anthropic account in the cloud — Claude itself can search them, which powers Relay's sync.",
+    where:[
+      ["Loose chats","claude.ai → your sidebar — covered by the standard sync prompt"],
+      ["Claude Projects","each Project keeps its chats scoped inside it — run the sync prompt INSIDE each Project, and tag the tracker project with its ⧉ name"],
+      ["No files on disk","everything is in your account; Relay's record + backups are your local copy"]
+    ]},
+  cowork: {
+    source:"Cowork", label:"Cowork", ic:()=>IC.hands, syncKey:"cowork",
+    blurb:"Agentic desktop tasks. Cowork leaves no transcript folder Relay can mine — so its workflow is wrap-up blocks, or having Cowork save a relay-sync.json you import.",
+    where:[
+      ["Task history","inside the Cowork tab of the desktop app only"],
+      ["No transcript files","nothing on disk to bulk-import (the honest limit)"],
+      ["Best workflow","Cowork saves relay-sync.json → Sync → Import sync file"]
+    ]}
+};
+function openSurfaceModal(k){
+  const S = SURFACES[k]; if(!S) return;
+  const mine = db.sessions.filter(s=>s.source===S.source);
+  const live = mine.filter(s=>s.status==="active").length;
+  modalCtx = {type:"info"};
+  document.getElementById("mDelete").style.display="none";
+  document.getElementById("mBody").innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="color:var(--accent)">${S.ic()}</span>
+      <b style="font-size:15px">${S.label}</b>
+      <span class="src-tag">${mine.length} session${mine.length!==1?"s":""} tracked${live?` · <b style="color:var(--latest)">${live} live</b>`:""}</span>
+    </div>
+    <p class="hint" style="font-size:13.5px;line-height:1.6;margin:0 0 12px">${S.blurb}</p>
+    <div class="where">
+      ${S.where.map(([t,v])=>`<div class="where-row"><span class="wt">${t}</span><span class="wv">${esc(v)}</span></div>`).join("")}
+    </div>
+    <div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn primary sm" onclick="copyText(syncPromptFor('${S.syncKey}'));toast('${S.label} sync prompt copied ✓')">${IC.copy} Copy its sync prompt</button>
+      <button class="btn sm" onclick="closeModal();setSourceFilter('${S.source}')">View its ${mine.length} session${mine.length!==1?"s":""}</button>
+      ${state.filterSource===S.source?`<button class="btn ghost sm" onclick="closeModal();setSourceFilter('all')">Clear source filter</button>`:""}
+    </div>`;
+  openModal("Surface: "+S.label);
+}
+function syncPromptFor(k){ return k==="code"?SYNC_PROMPT_CODE : k==="cowork"?SYNC_PROMPT_COWORK : SYNC_PROMPT; }
+function setSourceFilter(src){
+  state.filterSource = src;
+  state.view = "timeline";
+  render();
+  if(src!=="all") toast("Showing "+src+" sessions only");
+}
+
+
+/* ============================================================
+   RETROACTIVE NAMING — mint serials + standard names for sessions
+   logged before the ID system existed. Originals are kept as an
+   alias (aka) so future syncs still match the old chat titles.
+   ============================================================ */
+function unserialed(){ return db.sessions.filter(s=>!s.serial); }
+function retroTopic(t){
+  let x = String(t||"")
+    .replace(/^[A-Z]{1,4}-\d{3,5}\s*·\s*/,"")            // already-prefixed leftovers
+    .replace(/\b\d{1,2}[.\/]\d{1,2}[.\/]\d{2,4}\b/g,"") // strip date stamps like 6.7.26
+    .replace(/\s{2,}/g," ").trim();
+  return (x || String(t||"session")).slice(0,42).trim();
+}
+function standardizeNames(){
+  const targets = unserialed();
+  if(!targets.length){ toast("Every session already has an ID"); return; }
+  if(!confirm(`Give ${targets.length} session${targets.length>1?"s":""} a permanent ID and standardized name?\n\nOriginal titles are kept as aliases, so future syncs still match the old chat names. This renames the tracker only — chats in Claude's sidebar keep their names.`)) return;
+  snapshotUndo("standardize names");
+  // chronological order so serial numbers tell the true story
+  targets.slice().sort((a,b)=>new Date(a.date||0)-new Date(b.date||0)).forEach(s=>{
+    const p = projById(s.project);
+    const serial = serialFor(flavorForSource(s.source), true);
+    if(!s.aka) s.aka = s.title;                              // remember the original for sync matching
+    s.serial = serial;
+    s.title = `${serial} · ${p?shortName(p):"?"} · ${retroTopic(s.aka)} · #${s.seq!=null?s.seq:1} · ${(s.date||nowLocal()).slice(0,10)} · ${s.status}`;
+  });
+  save(); render();
+  toast(`Standardized ${targets.length} name${targets.length>1?"s":""} ✓ — originals kept as aliases`);
+}
+
+
+/* ============================================================
+   UNDO — snapshot before every destructive operation.
+   Ctrl+Z (outside inputs) or the palette restores the board.
+   ============================================================ */
+let undoStack = []; // [{label, data}] newest last, max 5
+function snapshotUndo(label){
+  try{
+    undoStack.push({label, data: JSON.stringify(db)});
+    if(undoStack.length > 5) undoStack.shift();
+  }catch(e){}
+}
+function undoLast(){
+  const u = undoStack.pop();
+  if(!u){ toast("Nothing to undo"); return; }
+  try{
+    const data = JSON.parse(u.data);
+    data.meta = data.meta||{}; data.handoffs = data.handoffs||[];
+    db = data; save(); applyTheme(); render();
+    toast("Undid: " + u.label + " ✓");
+  }catch(e){ toast("Undo failed — restore from a backup instead"); }
+}
+
+/* ---------- navigation ---------- */
+function go(v){ state.view=v; render(); window.scrollTo({top:0,behavior:"smooth"}); }
+document.getElementById("tabs").addEventListener("click",e=>{ const b=e.target.closest(".tab"); if(b){ state.view=b.dataset.view; render(); } });
+function jumpTo(id){
+  const s=sessById(id); if(!s) return;
+  state.view="timeline"; state.filterProject=s.project; render();
+  setTimeout(()=>{
+    const card=document.querySelector(`.scard[data-sid="${id}"]`);
+    if(card){
+      card.scrollIntoView({behavior:"smooth",block:"center"});
+      card.style.transition="box-shadow .3s";
+      card.style.boxShadow="0 0 0 3px var(--accent), var(--shadow)";
+      setTimeout(()=>{ card.style.boxShadow=""; },1800);
+    } else {
+      window.scrollTo({top:200,behavior:"smooth"});
+    }
+    toast("Jumped to: "+s.title);
+  },60);
+}
+function quickAdd(){
+  if(state.view==="handoffs") openHandoffModal();
+  else if(state.view==="projects") openProjectModal();
+  else openSessionModal();
+}
+
+/* ---------- search ---------- */
+const searchEl=document.getElementById("search");
+searchEl.addEventListener("input",()=>{
+  state.search=searchEl.value.trim();
+  if(state.search && state.view!=="timeline") state.view="timeline";
+  render();
+});
+function clearSearch(){ searchEl.value=""; state.search=""; render(); }
+
+/* ---------- Export / Import ---------- */
+function doExport(){
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  const stamp=new Date().toISOString().slice(0,10);
+  a.href=URL.createObjectURL(blob); a.download=`relay-backup-${stamp}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  db.meta.lastExport = new Date().toISOString(); save(); hideNudge();
+  toast("Backup downloaded ✓");
+}
+function backupDue(){
+  const last = db.meta && db.meta.lastExport;
+  if(!last) return false; // clock not started yet
+  return (Date.now() - new Date(last).getTime())/86400000 >= 7;
+}
+function hideNudge(){ const n=document.getElementById("backupNudge"); if(n) n.style.display="none"; }
+function showNudgeIfDue(){ if(backupDue()){ const n=document.getElementById("backupNudge"); if(n) n.style.display="flex"; } }
+function doImport(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const data=JSON.parse(r.result);
+      if(!data.projects||!data.sessions) throw 0;
+      if(!confirm("Import this backup? It will REPLACE all current data.")) { ev.target.value=""; return; }
+      snapshotUndo("import backup (full replace)");
+      db={meta:data.meta||db.meta||{}, projects:data.projects||[], sessions:data.sessions||[], handoffs:data.handoffs||[]};
+      save(); render(); toast("Imported ✓");
+    }catch(e){ alert("That doesn't look like a valid Relay backup file."); }
+    ev.target.value="";
+  };
+  r.readAsText(file);
+}
+
+/* ---------- go ---------- */
+document.getElementById("vfoot").textContent = "v"+APP_VERSION;
+document.getElementById("repolink").href = REPO_URL;
+if(SUPPORT_URL){ document.getElementById("supportwrap").style.display="inline"; document.getElementById("supportlink").href = SUPPORT_URL; }
+applyTheme();
+render();
+fsBoot();
+maybeWelcome();
+// another tab saved? reload data (but never yank a modal out from under the user)
+window.addEventListener("storage", e=>{
+  if(e.key!==STORE_KEY || !e.newValue) return;
+  if(document.querySelector(".overlay.show")) return;
+  db = load(); applyTheme(); render();
+  toast("Updated from another tab ✓");
+});
+
+/* ---------- weekly backup reminder ----------
+   Start the clock on first run (so brand-new users aren't nagged),
+   then nudge once it's been 7+ days since the last export.            */
+(function(){
+  if(!db.meta.lastExport){ db.meta.lastExport = new Date().toISOString(); save(); }
+  showNudgeIfDue();
+})();
+
+/* ---------- desktop-shortcut auto-new-session ----------
+   Opening index.html#new (the "New Claude Session" desktop shortcut)
+   instantly pops a fresh session with an auto-generated name + current
+   date/time. The hash is cleared so a refresh won't re-trigger it.      */
+(function(){
+  const wantsNew = location.hash==="#new" || location.hash==="#start" || /[?&]new\b/.test(location.search);
+  if(!wantsNew) return;
+  try{ history.replaceState(null,"",location.pathname); }catch(e){}
+  openStarter();   // desktop shortcut → flavor → serial → prompt
+})();
+</script>
+</body>
+</html>
